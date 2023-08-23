@@ -4,9 +4,15 @@
 #include "detours.h"
 #include "shm_data.h"
 #include "hook.h"
+#include <sstream>
+
+// singleton static variable define
+std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
+MutexSingleton::GarbageCollector MutexSingleton::gc;
+std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
+SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
 
 // global variable
-
 typedef BOOL(WINAPI* SwapBuffersType)(HDC hdc);
 SwapBuffersType orig_SwapBuffers = NULL; 
 ScreenShotHook* global_sh; 
@@ -73,7 +79,7 @@ BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
     // need try finally later
     // 客户端如何知道保存了多少？写入header structure
     memcpy(global_sh->shm->data<BYTE*>(), &shm_header, sizeof(shm_header));
-    memcpy(gloabl_sh->shm->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
+    memcpy(global_sh->shm->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
 
     // global_sh->shm->writebuffer(0, &shm_header, sizeof(shm_header)); 
     // global_sh->shm->writebuffer(sizeof(shm_header), pixels, width * height * 3); 
@@ -106,7 +112,7 @@ void PrintLastError()
 
 #include <map>
 // hooked_SwapBuffers 注册表
-std::map<const char*, SwapBuffersType> SwapBuffers_register = { 
+std::map<std::string, SwapBuffersType> SwapBuffers_register = { 
     {"SharedMemory",hooked_SwapBuffers_SharedMemory},
     {"SaveToFile", hooked_SwapBuffers_SaveBMP}
 };
@@ -114,12 +120,14 @@ std::map<const char*, SwapBuffersType> SwapBuffers_register = {
 
 // To do: 2023/08/13
 // 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
-long __stdcall SetHook(HWND hwnd, const std::string& op)
+// done: 2023/08/23
+long __stdcall SetHook(DWORD processId, const std::string& op, const size_t size)
 {
     // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
     std::stringstream ss;
-    ss << hwnd << "_" << "CaptureBuffer";
-    global_sh = new ScreenShotHook(ss.str());
+    ss << "CaptureBuffer_"  << processId;
+    global_sh = new ScreenShotHook(ss.str(), size);
+    global_sh->start(); 
 
     // 加入钩子
     orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
@@ -127,24 +135,28 @@ long __stdcall SetHook(HWND hwnd, const std::string& op)
     {
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_register[op]);
+        DetourAttach(&(PVOID&)orig_SwapBuffers, SwapBuffers_register[op]);
         DetourTransactionCommit();
     }
+
+    return 0;
 }
 
-long __stdcall ReleaseHook()
+long __stdcall ReleaseHook(DWORD processId, const std::string& op)
 {
     // 重置钩子
     if (orig_SwapBuffers)
     {
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers);
+        DetourDetach(&(PVOID&)orig_SwapBuffers, SwapBuffers_register[op]);
         DetourTransactionCommit();
     }
 
     // 释放资源
     delete global_sh; 
+
+    return 0;
 }
 
 

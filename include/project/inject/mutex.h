@@ -83,9 +83,6 @@ private:
 	HANDLE _hMutex = NULL;
 };
 
-std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
-MutexSingleton::GarbageCollector MutexSingleton::gc;
-
 class Lock
 {
 public:

@@ -1,6 +1,7 @@
 #ifndef _HOOK_H
 #define _HOOK_H
 #include "mutex.h"
+#include "shared_memory.h"
 #include "screenshot.h"
 
 class ScreenShotHook
@@ -9,16 +10,16 @@ public:
 	ScreenShotHook(const std::string& name_, const size_t size_) :_sName(name_)
 	{
 		mutex = MutexSingleton::Instance(name_ + "_Mutex");
-		shm = SharedMemorySingleton::Instance(name_ + "SharedMemory");
+		shm = SharedMemorySingleton::Instance(name_ + "SharedMemory", size_);
 	}
 	bool start()
 	{
 		if (!mutex->open()) {
-			return False;
+			return false;
 		}
 			
 		if (!shm->open()) {
-			return False; 
+			return false; 
 		}
 
 		return TRUE; 
@@ -28,9 +29,11 @@ public:
 		MutexSingleton::remove(_sName);
 		SharedMemorySingleton::remove(_sName);
 	}
-private:
+
 	MutexSingleton* mutex; 
-	SharedMemorySingleton* shm; 
+	SharedMemorySingleton* shm;
+
+private:
 	const std::string& _sName; 
 };
 

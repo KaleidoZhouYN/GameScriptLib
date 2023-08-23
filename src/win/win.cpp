@@ -7,7 +7,7 @@
 * @return: BOOL 是否成功
 */
 
-BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumWindowsTitleProc(HWND hWnd, LPARAM lParam)
 {
 	// convert lParam back to vector<string>
 	WinTitleList_t& windowTitle_List = *(reinterpret_cast<WinTitleList_t*>(lParam));
@@ -34,7 +34,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
 BOOL GetHWndByName(const char* keyword, LPARAM lParam)
 {
 	WinTitleList_t windowTitle_List;
-	EnumWindows(&EnumWindowsProc, reinterpret_cast<LPARAM>(&windowTitle_List));
+	EnumWindows(&EnumWindowsTitleProc, reinterpret_cast<LPARAM>(&windowTitle_List));
 
 	WinInfo_t& winInfo = *(reinterpret_cast<WinInfo_t*>(lParam));
 	for (auto windowTitle : windowTitle_List)
@@ -50,7 +50,7 @@ BOOL GetHWndByName(const char* keyword, LPARAM lParam)
 BOOL GetHWndListByName(const char* keyword, LPARAM lParam)
 {
 	WinTitleList_t windowTitle_List_All;
-	EnumWindows(&EnumWindowsProc, reinterpret_cast<LPARAM>(&windowTitle_List_All));
+	EnumWindows(&EnumWindowsTitleProc, reinterpret_cast<LPARAM>(&windowTitle_List_All));
 
 	WinTitleList_t& windowTitle_List = *(reinterpret_cast<WinTitleList_t*>(lParam));
 	// 获取标题中有对应的
@@ -65,5 +65,49 @@ BOOL GetHWndListByName(const char* keyword, LPARAM lParam)
 
 BOOL GetHWndChild(HWND hWnd, LPARAM lParam)
 {
-	return EnumChildWindows(hWnd, &EnumWindowsProc, lParam);
+	return EnumChildWindows(hWnd, &EnumWindowsTitleProc, lParam);
+}
+
+#include<deque>
+BOOL GetHWndAllChild(HWND hWnd,LPARAM lParam)
+{
+	WinTitleList_t& windowTitleList = *(reinterpret_cast<WinTitleList_t*>(lParam));
+	std::deque<WinInfo_t> winQueue; 
+
+	auto length = GetWindowTextLengthA(hWnd);
+	char* buffer = new char[length + 1];
+	GetWindowTextA(hWnd, buffer, length + 1);
+	std::string strTo(buffer);
+
+	winQueue.push_back(WinInfo_t(hWnd, strTo));
+	windowTitleList.push_back(WinInfo_t(hWnd, strTo));
+	while (!winQueue.empty())
+	{
+		auto f = winQueue.front();
+		winQueue.pop_front(); 
+		WinTitleList_t temp; 
+		GetHWndChild(f.first, reinterpret_cast<LPARAM>(&temp));
+		winQueue.insert(winQueue.end(), temp.begin(), temp.end());
+		windowTitleList.insert(windowTitleList.end(), temp.begin(), temp.end());
+	}
+	return TRUE; 
+}
+
+BOOL FindHWndRedraw(HWND hWnd, LPARAM lParam)
+{
+	WinTitleList_t temp; 
+	GetHWndAllChild(hWnd, reinterpret_cast<LPARAM>(&temp));
+
+	WinInfo_t& result = *(reinterpret_cast<WinInfo_t*>(lParam));
+	for (auto it = temp.begin(); it != temp.end(); it++)
+	{
+		HWND childWnd = it->first; 
+		DWORD classStyle = GetClassLong(childWnd, GCL_STYLE);
+		if (classStyle & CS_VREDRAW)
+		{
+			result = *it; 
+			return TRUE;
+		}
+	}
+	return FALSE; 
 }

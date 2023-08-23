@@ -4,12 +4,7 @@
 #include <string>
 #include <map>
 #include <memory>
-#ifdef HAS_BOOST
-#include <boost/interprocess/shared_memory_object.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-#else
 #include <windows.h>
-#endif 
 
 
 // 通常我们使用共享内存的时候，都只会创建一个真实内存，以及若干个映射的虚拟内存地址
@@ -144,8 +139,5 @@ private:
 	size_t _iMaxShmSize = 0;
 	HANDLE _hMapFile = NULL;
 };
-
-std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
-SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
 
 #endif

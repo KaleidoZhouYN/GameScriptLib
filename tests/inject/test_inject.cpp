@@ -7,6 +7,12 @@
 #include "mutex.h"
 #include "shared_memory.h"
 
+// singleton static variable define
+std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
+MutexSingleton::GarbageCollector MutexSingleton::gc;
+std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
+SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
+
 bool PathExists(const std::string& s) {
 	DWORD dwAttrib = GetFileAttributes(s.c_str());
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
@@ -71,26 +77,16 @@ HWND GetLeidian()
 	GetHWndByName(keyword, reinterpret_cast<LPARAM>(&winInfo));
 	std::cout << "找到相应的程序，其标题为" << std::endl << winInfo.second << std::endl;
 
-	WinTitleList_t winChildList;
-	GetHWndChild(winInfo.first, reinterpret_cast<LPARAM>(&winChildList));
-	auto firstChild = winChildList[0];
-
-	std::cout << "找到相应的子程序，其标题为" << std::endl << firstChild.second << std::endl;
-
-	winChildList.clear();
-	GetHWndChild(firstChild.first, reinterpret_cast<LPARAM>(&winChildList));
-	firstChild = winChildList[0];
-
-	std::cout << "找到相应的子程序，其标题为" << std::endl << firstChild.second << std::endl;
-
-	HWND hWnd = firstChild.first;
+	FindHWndRedraw(winInfo.first, reinterpret_cast<LPARAM>(&winInfo));
+	std::cout << "找到VREDRAW子程序，其标题为" << std::endl << winInfo.second << std::endl; 
+	HWND hWnd = winInfo.first;
 	return hWnd; 
 }
 
 HWND GetYuanshen()
 {
 	// 获取目标进程ID
-	const char* keyword = "原";
+	const char* keyword = "原神";
 	WinInfo_t winInfo;
 	GetHWndByName(keyword, reinterpret_cast<LPARAM>(&winInfo));
 	std::cout << "找到相应的程序，其标题为" << std::endl << winInfo.second << std::endl;
