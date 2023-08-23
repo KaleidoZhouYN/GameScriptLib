@@ -1,3 +1,5 @@
+#ifndef _MUTEX_H
+#define _MUTEX_H
 #include <windows.h>
 #include <string>
 #include <assert.h>
@@ -103,6 +105,8 @@ public:
 private:
 	MutexSingleton* _mutex; 
 };
+
+#endif
 
 
 /* CreateMutex返回的handle是不同的，所以不存在shared handle的情况

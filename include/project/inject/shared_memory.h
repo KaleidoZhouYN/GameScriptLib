@@ -1,3 +1,6 @@
+#ifndef _SHARED_MEMORY_H
+#define _SHARED_MEMORY_H
+
 #include <string>
 #include <map>
 #include <memory>
@@ -144,3 +147,5 @@ private:
 
 std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
 SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
+
+#endif

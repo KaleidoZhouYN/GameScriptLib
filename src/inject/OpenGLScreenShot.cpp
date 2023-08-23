@@ -3,19 +3,14 @@
 #include <stdio.h>
 #include "detours.h"
 #include "shm_data.h"
-#include "screenshot.h"
-#include "shared_memory.h"
-#include "mutex.h"
+#include "hook.h"
 
 // global variable
 
 typedef BOOL(WINAPI* SwapBuffersType)(HDC hdc);
 SwapBuffersType orig_SwapBuffers = NULL; 
+ScreenShotHook* global_sh; 
 
-// std::mutex is intra-process mutex without "name" identify,so need a inter-process mutex here
-// every dll need a global name to identify which process is been injected
-MutexSingleton* mutex;
-SharedMemorySingleton* shm;
 
 
 // To do : Change width, heigth to RParam
@@ -73,32 +68,21 @@ BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 
     SharedDataHeader shm_header = { width, height, 3 };
 
-    Lock lock(mutex);
+    Lock lock(global_sh->mutex);
 
     // need try finally later
     // 客户端如何知道保存了多少？写入header structure
-    memcpy(shm->data<BYTE*>(), &shm_header, sizeof(shm_header));
-    memcpy(shm->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
+    memcpy(global_sh->shm->data<BYTE*>(), &shm_header, sizeof(shm_header));
+    memcpy(gloabl_sh->shm->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
+
+    // global_sh->shm->writebuffer(0, &shm_header, sizeof(shm_header)); 
+    // global_sh->shm->writebuffer(sizeof(shm_header), pixels, width * height * 3); 
     lock.unlock();
 
     delete[] pixels;
     return orig_SwapBuffers(hdc);
 }
 
-BOOL AllocSharedMemory(void)
-{
-    const char* shm_name = "CaptuerBuffer";
-    const int MaxShmSize = 2560 * 1600 * 3;
-    shm = SharedMemorySingleton::Instance(shm_name, MaxShmSize);
-    return shm->open(); 
-}
-
-BOOL AllocMutex(void)
-{
-    const char* shm_name = "CaptuerBufferMutex";
-    mutex =  MutexSingleton::Instance(shm_name); 
-    return mutex->open(); 
-}
 
 void PrintLastError()
 {
@@ -130,49 +114,51 @@ std::map<const char*, SwapBuffersType> SwapBuffers_register = {
 
 // To do: 2023/08/13
 // 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
+long __stdcall SetHook(HWND hwnd, const std::string& op)
+{
+    // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
+    std::stringstream ss;
+    ss << hwnd << "_" << "CaptureBuffer";
+    global_sh = new ScreenShotHook(ss.str());
+
+    // 加入钩子
+    orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
+    if (orig_SwapBuffers)
+    {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        DetourAttach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_register[op]);
+        DetourTransactionCommit();
+    }
+}
+
+long __stdcall ReleaseHook()
+{
+    // 重置钩子
+    if (orig_SwapBuffers)
+    {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        DetourDetach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers);
+        DetourTransactionCommit();
+    }
+
+    // 释放资源
+    delete global_sh; 
+}
+
 
 /*
-* brief: DLL入口,注入的时候开始分配共享内存
+* brief: DLL入口
 */
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        MessageBoxA(0, "DLL process has been injected!", "Injected", MB_ICONEXCLAMATION);
-        // 分配共享内存
-        
-        if(!AllocSharedMemory())
-            MessageBoxA(0, "Alloc shared memory failed", "Fail", MB_ICONEXCLAMATION);
-
-        if (!AllocMutex())
-        {
-            PrintLastError();
-            MessageBoxA(0, "Create Mutex fail", "OK1", MB_ICONEXCLAMATION);
-        }
-            
-
-         
-        
-        orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
-        if (orig_SwapBuffers)
-        {
-            DetourTransactionBegin();
-            DetourUpdateThread(GetCurrentThread());
-            DetourAttach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
-            DetourTransactionCommit();
-        }
-        else
-        {
-            MessageBoxA(0, "SwapBuffer not found!", "Fail", MB_ICONEXCLAMATION);
-        }
-        
-        break;
     case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-        break; 
+    case DLL_THREAD_DETACH: 
     case DLL_PROCESS_DETACH:
-
         break;
     }
     return TRUE;
