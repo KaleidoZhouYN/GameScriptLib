@@ -17,10 +17,12 @@ public:
 		if (!mutex->open()) {
 			return false;
 		}
+		MessageBoxA(0, "Mutex open", "OK", MB_ICONEXCLAMATION);
 			
 		if (!shm->open()) {
 			return false; 
 		}
+		MessageBoxA(0, "SHM open", "OK", MB_ICONEXCLAMATION);
 
 		return TRUE; 
 	}

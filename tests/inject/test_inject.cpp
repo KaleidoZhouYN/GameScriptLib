@@ -3,94 +3,78 @@
 #include <string>
 #include "shm_data.h"
 #include "opencv2/opencv.hpp"
-#include "screenshot.h"
-#include "mutex.h"
-#include "shared_memory.h"
+#include "hook.h"
+#include "injector.h"
+#include <signal.h>
+#include <mutex>
+
+// multi-thread mutex
+std::mutex mtx; 
 
 // singleton static variable define
 std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
 MutexSingleton::GarbageCollector MutexSingleton::gc;
 std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
 SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
-
-bool PathExists(const std::string& s) {
-	DWORD dwAttrib = GetFileAttributes(s.c_str());
-	return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
-}
-
-SharedMemorySingleton* shm; 
-MutexSingleton* mutex; 
-const std::string shm_name = "CaptuerBuffer";
+ 
+const std::string shm_name = "CaptureBuffer_";
 const int MaxShmSize = 2560 * 1600 * 3;
 
-BOOL ReadBufferAndShow(void)
+BOOL ReadBufferAndShow(ScreenShotHook* sh, const std::string& name_)
 {
-	cv::namedWindow("Capture", cv::WINDOW_AUTOSIZE);
+	cv::namedWindow(name_, cv::WINDOW_AUTOSIZE);
 	BYTE* pixels = nullptr;
 	while (TRUE) {
 		// 读共享内存，加锁
-		Lock lock(mutex);
+		Lock lock(sh->mutex);
 
 		// 读入header
 		SharedDataHeader shm_header;
 
 		// 首先保存frame
-		memcpy(&shm_header, shm->data<BYTE*>(), sizeof(shm_header));
+		memcpy(&shm_header, sh->shm->data<BYTE*>(), sizeof(shm_header));
 		int width = shm_header.width, height = shm_header.height, channel = shm_header.channel;
 		if (width * height * channel > 0)
 		{
 			pixels = new BYTE[width * height * channel];
 
-			memcpy(pixels, shm->data<BYTE*>() + sizeof(shm_header), width * height * channel);
+			memcpy(pixels, sh->shm->data<BYTE*>() + sizeof(shm_header), width * height * channel);
 		}
 		lock.unlock();
+		
 
 		// 转成opencv可以接受的格式
+		std::unique_lock<std::mutex> dis_lock(mtx);
 		if (pixels)
 		{
 			cv::Mat frame(height, width, CV_8UC3, pixels);
 			// 上下翻转，因为openGL的起点是左下角
 			cv::flip(frame, frame, 0);
-			cv::resize(frame, frame, cv::Size(800, 450));
-			cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
-			cv::imshow("Capture", frame);
+			cv::resize(frame, frame, cv::Size(400, 225));
+			//cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
+			cv::imshow(name_, frame);
 			delete[] pixels;
-
 		}
-		char c = (char)cv::waitKey(25);
-		if (c != -1)
-			break;
 		pixels = nullptr;
+		cv::waitKey(25);
+		dis_lock.unlock(); 
 	}
 
 	// release resources
-	cv::destroyWindow("Capture");
+	cv::destroyWindow(name_);
 
 	return TRUE; 
 }
 
-HWND GetLeidian()
+HWND GetHWnd(const std::string& keyword)
 {
 	// 获取目标进程ID
-	const char* keyword = "雷电";
 	WinInfo_t winInfo;
-	GetHWndByName(keyword, reinterpret_cast<LPARAM>(&winInfo));
+	GetHWndByName(keyword.c_str(), reinterpret_cast<LPARAM>(&winInfo));
 	std::cout << "找到相应的程序，其标题为" << std::endl << winInfo.second << std::endl;
 
 	FindHWndRedraw(winInfo.first, reinterpret_cast<LPARAM>(&winInfo));
 	std::cout << "找到VREDRAW子程序，其标题为" << std::endl << winInfo.second << std::endl; 
-	HWND hWnd = winInfo.first;
-	return hWnd; 
-}
-
-HWND GetYuanshen()
-{
-	// 获取目标进程ID
-	const char* keyword = "原神";
-	WinInfo_t winInfo;
-	GetHWndByName(keyword, reinterpret_cast<LPARAM>(&winInfo));
-	std::cout << "找到相应的程序，其标题为" << std::endl << winInfo.second << std::endl;
-
 	HWND hWnd = winInfo.first;
 	return hWnd; 
 }
@@ -115,68 +99,44 @@ void PrintLastError()
 	LocalFree(errMsg);
 }
 
-int main() {
+
+void threadFunction(const std::string& keyword) {
 	const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
-	if (PathExists(std::string(dllPath)))
-		std::cout << "Path exists" << std::endl;
-	else
-		std::cout << "Path not exist" << std::endl; 
-	
-	HWND hWnd = GetLeidian(); 
+
+	HWND hWnd = GetHWnd(keyword);
 	DWORD processId;
 	GetWindowThreadProcessId(hWnd, &processId);
 
-	// 打开目标进程
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
-	if (!hProcess) {
-		std::cerr << "Error: Could not open process" << std::endl; 
-		goto fail; 
-	}
-
-	// 在目标进程中分配内存
-	void* pDllPath = VirtualAllocEx(hProcess, 0, strlen(dllPath) + 1, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
-	// 写DLL路径到目标进程的内存中
-	if (!pDllPath) {
-		std::cerr << "Error: Could not Alloc Virtual Memory" << std::endl; 
-		goto fail;
-	}
-	
-	if (!WriteProcessMemory(hProcess, pDllPath, dllPath, strlen(dllPath) + 1, 0)) {
-		std::cout << "Error: Could not write dll path" << std::endl; 
-		goto fail; 
-	}
-
-	//在目标进程中启动一个新线程来加载DLL
-	HANDLE hThread = CreateRemoteThreadEx(hProcess, 0, 0,
-		(LPTHREAD_START_ROUTINE)LoadLibraryA,
-		pDllPath, 0, 0, 0);
-
+	// injector
+	Injector injector(processId);
+	std::unique_lock<std::mutex> lock(mtx);
+	injector.inject(dllPath);
+	lock.unlock(); 
 
 	// 读取buffer并显示
 
-	char t; 
-	std::cin >> t; 
+	std::stringstream ss;
+	ss << shm_name << processId;
+	ScreenShotHook sh(ss.str(), MaxShmSize);
+	sh.start();
 
-	shm = SharedMemorySingleton::Instance(shm_name, MaxShmSize);
-	shm->open(); 
-	mutex = MutexSingleton::Instance(shm_name+"Mutex");
-	mutex->open(); 
-
-	ReadBufferAndShow(); 
+	ReadBufferAndShow(&sh, ss.str());
 	// 清理并关闭句柄
 
+	injector.release();
+}
 
-fail:
-	PrintLastError(); 
-	if (hThread)
-		CloseHandle(hThread);
+void signalHandler(int signum) {
 
-	if (hProcess)
-		CloseHandle(hProcess);
+	exit(signum);  // 终止程序
+}
 
-	if (pDllPath)
-		VirtualFree(pDllPath, 0, MEM_RELEASE);
+int main() {
+	signal(SIGINT, signalHandler);
 
+	std::thread t1(threadFunction, "雷电模拟器");
+	std::thread t2(threadFunction,"雷电模拟器-1");
+	t1.join();
+	t2.join(); 
 	return 0; 
 }

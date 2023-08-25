@@ -89,18 +89,22 @@ public:
 	Lock(MutexSingleton* mutex) { 
 		_mutex = mutex;
 		_mutex->lock();
+		isLocked = true; 
 	};
 	~Lock()
 	{
-		unlock(); 
+		if (isLocked)
+			unlock(); 
 	}
 
 	void unlock()
 	{
 		_mutex->unlock(); 
+		isLocked = false; 
 	}
 private:
 	MutexSingleton* _mutex; 
+	bool isLocked = false;
 };
 
 #endif

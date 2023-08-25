@@ -121,11 +121,11 @@ std::map<std::string, SwapBuffersType> SwapBuffers_register = {
 // To do: 2023/08/13
 // 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
 // done: 2023/08/23
-long __stdcall SetHook(DWORD processId, const std::string& op, const size_t size)
+extern "C" __declspec(dllexport) long __stdcall SetHook(DWORD processId, const size_t size)
 {
     // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
     std::stringstream ss;
-    ss << "CaptureBuffer_"  << processId;
+    ss << std::string("CaptureBuffer_")  << processId;
     global_sh = new ScreenShotHook(ss.str(), size);
     global_sh->start(); 
 
@@ -135,21 +135,21 @@ long __stdcall SetHook(DWORD processId, const std::string& op, const size_t size
     {
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)orig_SwapBuffers, SwapBuffers_register[op]);
+        DetourAttach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
         DetourTransactionCommit();
     }
 
     return 0;
 }
 
-long __stdcall ReleaseHook(DWORD processId, const std::string& op)
+extern "C" __declspec(dllexport) long __stdcall ReleaseHook(DWORD processId)
 {
     // 重置钩子
     if (orig_SwapBuffers)
     {
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)orig_SwapBuffers, SwapBuffers_register[op]);
+        DetourDetach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
         DetourTransactionCommit();
     }
 

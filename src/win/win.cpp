@@ -26,12 +26,12 @@ BOOL CALLBACK EnumWindowsTitleProc(HWND hWnd, LPARAM lParam)
 }
 
 /*
-* @brief: 获取对应标题的hWnd
+* @brief: 获取标题里面第一个包含keyword的hWnd
 * @param: keyword 窗口标题(完整）
 * @param: lParam 对应的winInfo
 * @return: 对应的HWND
 */
-BOOL GetHWndByName(const char* keyword, LPARAM lParam)
+BOOL GetHWndByKeyword(const char* keyword, LPARAM lParam)
 {
 	WinTitleList_t windowTitle_List;
 	EnumWindows(&EnumWindowsTitleProc, reinterpret_cast<LPARAM>(&windowTitle_List));
@@ -40,6 +40,22 @@ BOOL GetHWndByName(const char* keyword, LPARAM lParam)
 	for (auto windowTitle : windowTitle_List)
 	{
 		if (windowTitle.second.find(keyword) != std::string::npos) {
+			winInfo = windowTitle;
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+BOOL GetHWndByName(const char* name, LPARAM lParam)
+{
+	WinTitleList_t windowTitle_List;
+	EnumWindows(&EnumWindowsTitleProc, reinterpret_cast<LPARAM>(&windowTitle_List));
+
+	WinInfo_t& winInfo = *(reinterpret_cast<WinInfo_t*>(lParam));
+	for (auto windowTitle : windowTitle_List)
+	{
+		if (windowTitle.second == std::string(name)) {
 			winInfo = windowTitle;
 			return TRUE;
 		}
