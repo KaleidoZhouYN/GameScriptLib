@@ -12,8 +12,8 @@ public:
 	{
 		//mutex = MutexSingleton::Instance(name_ + "_Mutex");
 		//shm = SharedMemorySingleton::Instance(name_ + "SharedMemory", size_);
-		mutex = new Mutex(name_);
-		shm = new SharedMemory(name_, size_);
+		mutex = new Mutex(name_ + "_Mutex");
+		shm = new SharedMemory(name_ + "_SharedMemory", size_);
 	}
 	bool start()
 	{
