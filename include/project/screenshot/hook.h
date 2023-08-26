@@ -4,36 +4,41 @@
 #include "shared_memory.h"
 #include "screenshot.h"
 
+/* brief: a RAII class for mutex and sharedmemory */
 class ScreenShotHook
 {
 public:
 	ScreenShotHook(const std::string& name_, const size_t size_) :_sName(name_)
 	{
-		mutex = MutexSingleton::Instance(name_ + "_Mutex");
-		shm = SharedMemorySingleton::Instance(name_ + "SharedMemory", size_);
+		//mutex = MutexSingleton::Instance(name_ + "_Mutex");
+		//shm = SharedMemorySingleton::Instance(name_ + "SharedMemory", size_);
+		mutex = new Mutex(name_);
+		shm = new SharedMemory(name_, size_);
 	}
 	bool start()
 	{
 		if (!mutex->open()) {
 			return false;
 		}
-		MessageBoxA(0, "Mutex open", "OK", MB_ICONEXCLAMATION);
 			
 		if (!shm->open()) {
 			return false; 
 		}
-		MessageBoxA(0, "SHM open", "OK", MB_ICONEXCLAMATION);
 
 		return TRUE; 
 	}
 	~ScreenShotHook()
 	{
-		MutexSingleton::remove(_sName);
-		SharedMemorySingleton::remove(_sName);
+		//MutexSingleton::remove(_sName);
+		//SharedMemorySingleton::remove(_sName);
+		delete mutex;
+		delete shm;
 	}
 
-	MutexSingleton* mutex; 
-	SharedMemorySingleton* shm;
+	//ScreenShotHook(ScreenShotHook& rhs) = delete; 
+
+	Mutex* mutex; 
+	SharedMemory* shm;
 
 private:
 	const std::string& _sName; 

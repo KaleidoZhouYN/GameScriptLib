@@ -5,18 +5,17 @@
 #include "shm_data.h"
 #include "hook.h"
 #include <sstream>
+#define ELPP_THREAD_SAFE
+#include "easylogging++.h"
 
-// singleton static variable define
-std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
-MutexSingleton::GarbageCollector MutexSingleton::gc;
-std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
-SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
 
 // global variable
 typedef BOOL(WINAPI* SwapBuffersType)(HDC hdc);
 SwapBuffersType orig_SwapBuffers = NULL; 
-ScreenShotHook* global_sh; 
+std::shared_ptr<ScreenShotHook> global_sh; 
 
+
+#define DLL_API extern "C" __declspec(dllexport)
 
 
 // To do : Change width, heigth to RParam
@@ -40,27 +39,6 @@ BOOL GetWinPixels(HDC hdc, LPARAM lParam, int& width, int& height) {
 * @brief: swapbuffer 钩子函数, 并将其保存至给定的BMP路径
 * @param: hdc 窗口的 DC handle
 */
-BOOL WINAPI hooked_SwapBuffers_SaveBMP(HDC hdc)
-{
-    static bool saved = FALSE;
-    if (!saved) {
-        BYTE* pixels = nullptr;
-        int height = 0, width = 0; 
-        GetWinPixels(hdc, reinterpret_cast<LPARAM>(&pixels), width, height);
-
-
-		MessageBoxA(0, "get frame", "Injected", MB_ICONEXCLAMATION);
-        // 保存为BMP
-        SaveToBMP(pixels, width, height, R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot.bmp)");
-        
-        MessageBoxA(0, "saved", "Injected", MB_ICONEXCLAMATION);
-
-        delete[] pixels;
-        saved = TRUE;
-    }
-
-    return orig_SwapBuffers(hdc);
-}
 
 /*
 @brief: swapbuffer的钩子函数, 将frame binary data 保存进入shared memory
@@ -110,29 +88,22 @@ void PrintLastError()
     LocalFree(errMsg);
 }
 
-#include <map>
-// hooked_SwapBuffers 注册表
-std::map<std::string, SwapBuffersType> SwapBuffers_register = { 
-    {"SharedMemory",hooked_SwapBuffers_SharedMemory},
-    {"SaveToFile", hooked_SwapBuffers_SaveBMP}
-};
-
-
 // To do: 2023/08/13
 // 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
 // done: 2023/08/23
-extern "C" __declspec(dllexport) long __stdcall SetHook(DWORD processId, const size_t size)
+DLL_API long __stdcall SetHook(DWORD processId, const size_t size)
 {
     // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
     std::stringstream ss;
     ss << std::string("CaptureBuffer_")  << processId;
-    global_sh = new ScreenShotHook(ss.str(), size);
+    global_sh = std::make_shared<ScreenShotHook>(ss.str(), size);
     global_sh->start(); 
 
     // 加入钩子
     orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
     if (orig_SwapBuffers)
     {
+        LOG(INFO) << "Begin SwapBuffers Hook with SharedMemory";
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
@@ -142,11 +113,12 @@ extern "C" __declspec(dllexport) long __stdcall SetHook(DWORD processId, const s
     return 0;
 }
 
-extern "C" __declspec(dllexport) long __stdcall ReleaseHook(DWORD processId)
+DLL_API long __stdcall ReleaseHook(DWORD processId)
 {
     // 重置钩子
     if (orig_SwapBuffers)
     {
+        LOG(INFO) << "Release SwapBuffers Hook with SharedMemory";
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
@@ -154,7 +126,7 @@ extern "C" __declspec(dllexport) long __stdcall ReleaseHook(DWORD processId)
     }
 
     // 释放资源
-    delete global_sh; 
+    global_sh.reset(); 
 
     return 0;
 }
@@ -163,11 +135,18 @@ extern "C" __declspec(dllexport) long __stdcall ReleaseHook(DWORD processId)
 /*
 * brief: DLL入口
 */
+
+INITIALIZE_EASYLOGGINGPP
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
+    el::Configurations conf;
+    conf.setToDefault();
+    conf.set(el::Level::Global, el::ConfigurationType::Filename, "dll.log");  // 设置日志文件的路径
+    el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+        break; 
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH: 
     case DLL_PROCESS_DETACH:

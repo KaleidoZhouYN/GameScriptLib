@@ -8,6 +8,9 @@
 #include "BlackBone/Process/Process.h"
 #include "BlackBone/Process/RPC/RemoteFunction.hpp"
 
+#include "easylogging++.h"
+#define ELPP_THREAD_SAFE
+
 
 // 2023/08/24
 // to do : decouple interface and implement
@@ -18,7 +21,6 @@ public:
 	Injector(DWORD hProcessId) : _hProcessId(hProcessId) {}
 	~Injector()
 	{
-		MessageBoxA(0, "Release injector", "OK", MB_ICONEXCLAMATION);
 		release();
 	}
 	void inject(const std::string&);

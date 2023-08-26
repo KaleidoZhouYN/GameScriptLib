@@ -10,16 +10,13 @@
 
 // multi-thread mutex
 std::mutex mtx; 
-
-// singleton static variable define
-std::map<std::string, MutexSingleton*> MutexSingleton::_singleton = {};
-MutexSingleton::GarbageCollector MutexSingleton::gc;
-std::map<std::string, SharedMemorySingleton*> SharedMemorySingleton::_singleton = {};
-SharedMemorySingleton::GarbageCollector SharedMemorySingleton::gc;
  
 const std::string shm_name = "CaptureBuffer_";
 const int MaxShmSize = 2560 * 1600 * 3;
 
+
+// 2023/08/25
+// to do : 增加一个帧率选取，避免帧率过高
 BOOL ReadBufferAndShow(ScreenShotHook* sh, const std::string& name_)
 {
 	cv::namedWindow(name_, cv::WINDOW_AUTOSIZE);
@@ -117,10 +114,10 @@ void threadFunction(const std::string& keyword) {
 
 	std::stringstream ss;
 	ss << shm_name << processId;
-	ScreenShotHook sh(ss.str(), MaxShmSize);
-	sh.start();
+	std::shared_ptr<ScreenShotHook> sh(new ScreenShotHook(ss.str(), MaxShmSize));
+	sh->start();
 
-	ReadBufferAndShow(&sh, ss.str());
+	ReadBufferAndShow(sh.get(), ss.str());
 	// 清理并关闭句柄
 
 	injector.release();
@@ -131,8 +128,15 @@ void signalHandler(int signum) {
 	exit(signum);  // 终止程序
 }
 
+INITIALIZE_EASYLOGGINGPP
+
 int main() {
-	signal(SIGINT, signalHandler);
+	signal(SIGINT, signalHandler); 
+
+	el::Configurations conf;
+	conf.setToDefault();
+	conf.set(el::Level::Global, el::ConfigurationType::Filename, R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\test_inject.log)");  // 设置日志文件的路径
+	el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
 
 	std::thread t1(threadFunction, "雷电模拟器");
 	std::thread t2(threadFunction,"雷电模拟器-1");

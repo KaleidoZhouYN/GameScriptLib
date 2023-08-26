@@ -6,17 +6,15 @@
 #include <memory>
 #include <windows.h>
 
+#include "easylogging++.h"
+#define ELPP_THREAD_SAFE  
 
-// 通常我们使用共享内存的时候，都只会创建一个真实内存，以及若干个映射的虚拟内存地址
-// 所以真实内存是唯一的，但是虚拟内存地址是不一样的，在创建的时候需要注意
-// MapViewOfFile 会创建很多隔离地址，需要避免这种情况，采取单例模式
+// 使用的时候需要用shared_ptr
 class SharedMemory
 {
-	static std::map<std::string, int> ref_count;
 public:
-	SharedMemory()  = default; 
-	SharedMemory(const std::string& name_, size_t size_) :_bShmData(nullptr), _sShmName(name_), _iMaxShmSize(size_) { };
-	~SharedMemory() {
+	SharedMemory(const std::string& name_,const size_t size_) :_bShmData(nullptr), _sShmName(name_), _iMaxShmSize(size_), _hMapFile(NULL) { };
+	virtual ~SharedMemory() {
 		close(); 
 	}
 
@@ -24,25 +22,61 @@ public:
 	SharedMemory& operator=(const SharedMemory& rhs) = delete;
 
 
-	bool open();
-	void close(); 
-	bool resize(size_t size_);
+	bool open()
+	{
+		_hMapFile = CreateFileMapping(
+			INVALID_HANDLE_VALUE,
+			NULL,
+			PAGE_READWRITE,
+			0,
+			_iMaxShmSize,
+			_sShmName.c_str());
+
+		if (_hMapFile == NULL) {
+			// add log here
+			LOG(ERROR) << " Could not create file mapping object with name: " << _sShmName;
+			//MessageBoxA(0, "Could not create file mapping object", "Fail", MB_ICONEXCLAMATION);
+			return FALSE;
+		}
+
+		_bShmData = static_cast<void*>(MapViewOfFile(_hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, _iMaxShmSize));
+
+		if (_bShmData == nullptr) {
+			// add log here
+			LOG(ERROR) << "Could not map view of file with name: " << _sShmName;
+			//MessageBoxA(0, "Could not map view of file.", "Fail", MB_ICONEXCLAMATION);
+			return FALSE;
+		}
+
+		LOG(INFO) << "Shared Memory created with name: " << _sShmName;
+
+		return TRUE;
+	}
+	void close()
+	{
+		if (_hMapFile)
+		{
+			UnmapViewOfFile(_hMapFile); // 释放虚拟内存
+			CloseHandle(_hMapFile);
+			_hMapFile = NULL; 
+			LOG(INFO) << "Shared Memory has benn released with name: " << _sShmName;
+		}
+	}
 	template<typename T>
 	T* data() {
-		return static_cast<T*>(_bShmData.get());
+		return static_cast<T*>(_bShmData);
 	}
-private:
-	std::shared_ptr<void*> _bShmData = nullptr; // 一个map 同样可以对应多个对象
+protected:
+	void* _bShmData = nullptr;
 	std::string _sShmName = "";
 	size_t _iMaxShmSize = 0; 
-
-#ifndef HAS_BOOST
-	HANDLE _hMapFile; 
-#endif
+	HANDLE _hMapFile = NULL; 
 };
 
+
 // shared memory 很适合采用singleton模式，可以避免无谓的空间使用
-class SharedMemorySingleton
+// 但是单例需要用name来控制,而且涉及到垃圾回收和初始化机制
+class SharedMemorySingleton : public SharedMemory
 {
 public:
 	static SharedMemorySingleton* Instance(const std::string& name_, const size_t size_)
@@ -73,19 +107,17 @@ public:
 	}
 
 protected:
-	SharedMemorySingleton(const std::string& name_, const size_t size_): _bShmData(nullptr), _sShmName(name_), _iMaxShmSize(size_), _hMapFile(NULL) {};
-	~SharedMemorySingleton()
+	SharedMemorySingleton(const std::string& name_, const size_t size_): SharedMemory(name_, size_) {};
+	virtual ~SharedMemorySingleton()
 	{
-		if (_hMapFile)
-		{
-			UnmapViewOfFile(_hMapFile); // 释放虚拟内存
-			CloseHandle(_hMapFile);
-		}
 	}
 
 private:
+	// 注意需要在cpp中初始化static对象
 	static std::map<std::string, SharedMemorySingleton*> _singleton; 
 
+
+	// 垃圾回收
 	class GarbageCollector {
 	public:
 		~GarbageCollector()
@@ -96,48 +128,6 @@ private:
 		}
 	};
 	static GarbageCollector gc;
-
-public:
-	BOOL open()
-	{
-		// 使用 windows API的代码
-		// 在一个process中，相同的shmName得到的handle都是相同的
-		// 如果sShnName之前就存在，同样会返回handle
-		_hMapFile = CreateFileMapping(
-			INVALID_HANDLE_VALUE,
-			NULL,
-			PAGE_READWRITE,
-			0,
-			_iMaxShmSize,
-			_sShmName.c_str());
-
-		if (_hMapFile == NULL) {
-			// add log here
-			MessageBoxA(0, "Could not create file mapping object", "Fail", MB_ICONEXCLAMATION);
-			return FALSE;
-		}
-
-		_bShmData = static_cast<void*>(MapViewOfFile(_hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, _iMaxShmSize));
-
-		if (_bShmData == nullptr) {
-			// add log here
-			MessageBoxA(0, "Could not map view of file.", "Fail", MB_ICONEXCLAMATION);
-			return FALSE;
-		}
-
-		return TRUE; 
-	}
-
-	template<typename T>
-	T* data() {
-		return static_cast<T*>(_bShmData);
-	}
-
-private:
-	void* _bShmData = nullptr; // 一个map 同样可以对应多个对象
-	std::string _sShmName = "";
-	size_t _iMaxShmSize = 0;
-	HANDLE _hMapFile = NULL;
 };
 
 #endif
