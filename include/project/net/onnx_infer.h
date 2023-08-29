@@ -1,4 +1,7 @@
 #include <cstdint>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include<iostream>
 #include<vector>
 #include <sstream>
@@ -13,26 +16,50 @@
 class OnnxInfer
 {
 public:
-	OnnxInfer();
-	~OnnxInfer() {};
+	OnnxInfer() {};
+	~OnnxInfer() {
+		delete session; 
+	};
 
 	void load(const char* onnx_path);
-	void set_inputs(const std::vector<Ort::Value>&);
+	//void set_inputs(const std::vector<Ort::Value>&);
 	void set_outputs(const std::vector<std::string>&, std::vector<std::vector<std::int64_t>>&);
-	void forward();
-	Ort::Value get_result(const std::string& output_name);
+	const std::vector<std::vector<std::int64_t>> get_input_shapes();
+
+	void forward(const std::vector<Ort::Value>&);
+	const Ort::Value& get_result(const std::string& output_name);
+	//const std::vector<Ort::Value&> get_result(const std::vector<std::string>& output_name);
 private:
-	Ort::Session session;
+	Ort::Session* session = nullptr;
 	std::vector<std::string> input_names = {};
 	std::vector<std::vector<std::int64_t>> input_shapes = {};
 	std::vector<std::string> output_names = {};
-	std::vector<std::vector<std::int64_t>> outptu_shapes = {};
+	std::vector<std::vector<std::int64_t>> output_shapes = {};
 
-	std::vector<Ort::Value> input_tensors = {};
-	std::map<std::string, Ort::Value> output_tensors = {};
+	//std::vector<Ort::Value> input_tensors = {};
+
+	// we try to make output_tensors a std::map<std::string, Ort::Value> but failed
+	// becuase while std::map record a element, it must constructed the Ort::Value first
+	// but Ort::Value didn't have a default constructor
+	// maybe need to use Ort::Value* or std::shared_ptr<Ort::Value>
+	std::vector<Ort::Value> output_tensors = {};
 };
 
 int calculate_product(const std::vector<std::int64_t>&);
 
 template<typename T>
-Ort::Value vec_to_tensor(std::vector<T>&, const std::is_trivially_move_constructible<std::int64_t>&);
+Ort::Value vec_to_tensor(std::vector<T>& data, const std::vector<std::int64_t>& shape) {
+	Ort::MemoryInfo mem_info =
+		Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
+	auto tensor = Ort::Value::CreateTensor<T>(mem_info, data.data(), data.size(), shape.data(), shape.size());
+	return tensor;
+}
+
+template<typename T>
+Ort::Value pt_to_tensor(T* p, const std::vector<std::int64_t>& shape)
+{
+	Ort::MemoryInfo mem_info =
+		Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
+	auto tensor = Ort::Value::CreateTensor<T>(mem_info, p, calculate_product(shape), shape.data(), shape.size());
+	return tensor;
+}

@@ -8,10 +8,10 @@
 
 int main() {
 	// 初始化 Onnx Runtime
-	//OnnxInfer onnx_infer;
-	//onnx_infer.load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\tools\hero_avatar.onnx)");
+	OnnxInfer onnx_infer;
+	onnx_infer.load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\tools\hero_avatar.onnx)");
 
-	
+	/*/
 	Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXRuntimeModel");
 
 	Ort::RunOptions run_options;
@@ -19,7 +19,7 @@ int main() {
 	const wchar_t* model_path = ConvertToWChar(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\tools\hero_avatar.onnx)");
 	//const wchar_t* model_path = ConvertToWChar(R"(mnist.onnx)");
 	Ort::Session session_{env, model_path, Ort::SessionOptions{nullptr}};
-	
+	*/
 
 	// 加载图像并转为浮点数
 	cv::Mat image = cv::imread(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\photo\3\avatar\木龙.jpg)");
@@ -39,6 +39,7 @@ int main() {
 
 	float* p = chw.ptr<float>(0); 
 
+	/*
 	// 创建一个onnx输入张量
 	//std::vector<int64_t> input_shape = { 1, 3, 48, 64 };
 	//auto memory_info = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
@@ -58,10 +59,21 @@ int main() {
 	const char* output_names[] = { "21" };
 
 	session_.Run(run_options, input_names, &input_tensor_, 1, output_names, &output_tensor_, 1);
+	*/
+	std::vector<Ort::Value> inputs;
+	inputs.emplace_back(pt_to_tensor<float>(p, onnx_infer.get_input_shapes()[0]));
+	//onnx_infer.set_inputs(inputs);
+
+	std::vector<std::string> output_name_ = { "21" };
+	std::vector<std::vector<int64_t>> output_shape_ = { {1, 125} };
+	onnx_infer.set_outputs(output_name_, output_shape_);
+	onnx_infer.forward(inputs); 
+	auto& results_tensors = onnx_infer.get_result(output_name_[0]);
 
 	float max = -1000;
 	int max_index = -1;
 	
+	float* results_ = const_cast<Ort::Value&>(results_tensors).GetTensorMutableData<float>();
 	for (int i = 0; i < 125; i++)
 		if (max < results_[i])
 		{
@@ -69,6 +81,6 @@ int main() {
 			max_index = i;
 		}
 	std::cout << max_index << std::endl;
-
+	
 	return 0; 
 }
