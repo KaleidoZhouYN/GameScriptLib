@@ -27,8 +27,8 @@ public:
 	const std::vector<std::vector<std::int64_t>> get_input_shapes();
 
 	void forward(const std::vector<Ort::Value>&);
-	const Ort::Value& get_result(const std::string& output_name);
-	//const std::vector<Ort::Value&> get_result(const std::vector<std::string>& output_name);
+	const Ort::Value* get_result(const std::string& output_name);
+	const std::vector<Ort::Value*> get_result(const std::vector<std::string>& output_name);
 private:
 	Ort::Session* session = nullptr;
 	std::vector<std::string> input_names = {};
@@ -41,8 +41,11 @@ private:
 	// we try to make output_tensors a std::map<std::string, Ort::Value> but failed
 	// becuase while std::map record a element, it must constructed the Ort::Value first
 	// but Ort::Value didn't have a default constructor
-	// maybe need to use Ort::Value* or std::shared_ptr<Ort::Value>
+	// maybe need to use Ort::Value& or std::shared_ptr<Ort::Value>
 	std::vector<Ort::Value> output_tensors = {};
+
+	// could not use shared_ptr because cannot use stared_ptr(new Qrt::Value())
+	std::map<std::string, Ort::Value*> output_map; 
 };
 
 int calculate_product(const std::vector<std::int64_t>&);

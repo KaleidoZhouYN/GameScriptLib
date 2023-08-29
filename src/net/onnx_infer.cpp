@@ -75,7 +75,6 @@ void OnnxInfer::forward(const std::vector<Ort::Value>& input_tensors)
 		[&](const std::string& str) {return str.c_str();  });
 
 	try {
-		// session->Run中会分配内存, output_tensor改变之后不知道会不会释放
 		output_tensors = session->Run(Ort::RunOptions{nullptr},
 			input_names_char.data(),
 			input_tensors.data(),
@@ -85,6 +84,10 @@ void OnnxInfer::forward(const std::vector<Ort::Value>& input_tensors)
 		);
 
 		assert(output_tensors.size() == output_names.size() && output_tensors[0].IsTensor());
+
+		for (size_t i = 0; i < output_names.size(); i++) {
+			output_map[output_names[i]] = &(output_tensors[i]);
+		}
 	}
 	catch (const Ort::Exception& exception) {
 		std::cout << "ERROR running model inference: " << exception.what() << std::endl; 
@@ -92,21 +95,20 @@ void OnnxInfer::forward(const std::vector<Ort::Value>& input_tensors)
 	}
 }
 
-/*
-const std::vector<Ort::Value&> OnnxInfer::get_result(const std::vector<std::string>& select_names)
+
+const std::vector<Ort::Value*> OnnxInfer::get_result(const std::vector<std::string>& select_names)
 {
-	std::vector<Ort::Value&> temp(select_names.size());
-	std::transform(std::begin(select_names), std::end(select_names), std::begin(temp),
-		[&](const std::string& str) { return &(output_tensors[str]);  });
+	std::vector<Ort::Value*> temp(0);
+	for (auto str : select_names)
+	{
+		temp.emplace_back(output_map[str]);
+	}
 	return temp; 
 }
-*/
 
-const Ort::Value& OnnxInfer::get_result(const std::string& select_name) 
+
+
+const Ort::Value* OnnxInfer::get_result(const std::string& select_name)
 {
-	auto it = std::find(output_names.begin(), output_names.end(), select_name);
-	assert (it != output_names.end()); 
-	// 计算索引，使用 std::distance 函数
-	int index = std::distance(output_names.begin(), it);
-	return output_tensors[index];
+	return output_map[select_name];
 }

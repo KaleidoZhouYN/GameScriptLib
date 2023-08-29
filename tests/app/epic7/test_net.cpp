@@ -68,12 +68,12 @@ int main() {
 	std::vector<std::vector<int64_t>> output_shape_ = { {1, 125} };
 	onnx_infer.set_outputs(output_name_, output_shape_);
 	onnx_infer.forward(inputs); 
-	auto& results_tensors = onnx_infer.get_result(output_name_[0]);
+	auto* results_tensors = onnx_infer.get_result(output_name_[0]);
 
 	float max = -1000;
 	int max_index = -1;
 	
-	float* results_ = const_cast<Ort::Value&>(results_tensors).GetTensorMutableData<float>();
+	float* results_ = const_cast<Ort::Value*>(results_tensors)->GetTensorMutableData<float>();
 	for (int i = 0; i < 125; i++)
 		if (max < results_[i])
 		{
