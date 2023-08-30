@@ -1,59 +1,37 @@
 #include "win.h"
 #include <iostream>
 #include <string>
-#include "shm_data.h"
 #include "opencv2/opencv.hpp"
-#include "hook.h"
-#include "injector.h"
 #include <signal.h>
-#include <mutex>
+#include <capture_gl.h>
 
 // multi-thread mutex
 std::mutex mtx; 
- 
-const std::string shm_name = "CaptureBuffer_";
-const int MaxShmSize = 2560 * 1600 * 3;
 
 
 // 2023/08/25
 // to do : 增加一个帧率选取，避免帧率过高
-BOOL ReadBufferAndShow(ScreenShotHook* sh, const std::string& name_)
+BOOL ReadBufferAndShow(OpenglCapture* sh, const std::string& index)
 {
+	std::string name_ = sh->get_name() + std::string("_") + index;
 	cv::namedWindow(name_, cv::WINDOW_AUTOSIZE);
-	BYTE* pixels = nullptr;
+	
 	while (TRUE) {
-		// 读共享内存，加锁
-		Lock lock(sh->mutex);
-
-		// 读入header
-		SharedDataHeader shm_header;
-
-		// 首先保存frame
-		memcpy(&shm_header, sh->shm->data<BYTE*>(), sizeof(shm_header));
-		int width = shm_header.width, height = shm_header.height, channel = shm_header.channel;
-		if (width * height * channel > 0)
-		{
-			pixels = new BYTE[width * height * channel];
-
-			memcpy(pixels, sh->shm->data<BYTE*>() + sizeof(shm_header), width * height * channel);
-		}
-		lock.unlock();
-		
-
+		FrameInfo pixels;
+		sh->capture_frame(&pixels);
 		// 转成opencv可以接受的格式
 		std::unique_lock<std::mutex> dis_lock(mtx);
-		if (pixels)
+		if (pixels.usable)
 		{
-			cv::Mat frame(height, width, CV_8UC3, pixels);
+			cv::Mat frame(pixels.header.height, pixels.header.width, CV_8UC3, pixels.buffer);
 			// 上下翻转，因为openGL的起点是左下角
 			cv::flip(frame, frame, 0);
 			cv::resize(frame, frame, cv::Size(400, 225));
 			//cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
 			cv::imshow(name_, frame);
-			delete[] pixels;
 		}
-		pixels = nullptr;
-		cv::waitKey(25);
+		if (cv::waitKey(40) == 'q')
+			break;
 		dis_lock.unlock(); 
 	}
 
@@ -97,34 +75,19 @@ void PrintLastError()
 }
 
 
-void threadFunction(const std::string& keyword) {
-	const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
-
-	HWND hWnd = GetHWnd(keyword);
-	DWORD processId;
-	GetWindowThreadProcessId(hWnd, &processId);
+void threadFunction(OpenglCapture* capture, const std::string& index) {
 
 	// injector
-	Injector injector(processId);
-	std::unique_lock<std::mutex> lock(mtx);
-	injector.inject(dllPath);
-	lock.unlock(); 
 
 	// 读取buffer并显示
-
-	std::stringstream ss;
-	ss << shm_name << processId;
-	std::shared_ptr<ScreenShotHook> sh(new ScreenShotHook(ss.str(), MaxShmSize));
-	sh->start();
-
-	ReadBufferAndShow(sh.get(), ss.str());
+	ReadBufferAndShow(capture, index);
 	// 清理并关闭句柄
-
-	injector.release();
 }
 
-void signalHandler(int signum) {
+std::shared_ptr<OpenglCapture> capture;
 
+void signalHandler(int signum) {
+	capture->end(); 
 	exit(signum);  // 终止程序
 }
 
@@ -138,8 +101,17 @@ int main() {
 	conf.set(el::Level::Global, el::ConfigurationType::Filename, R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\test_inject.log)");  // 设置日志文件的路径
 	el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
 
-	std::thread t1(threadFunction, "雷电模拟器");
-	std::thread t2(threadFunction,"雷电模拟器-1");
+	HWND hwnd = GetHWnd("雷电模拟器");
+
+
+	const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
+
+	const size_t MaxShmSize = 2560 * 1600 * 3;
+	capture = std::make_shared<OpenglCapture>(hwnd, dllPath, MaxShmSize);
+	capture->start();
+
+	std::thread t1(threadFunction, capture.get(), "1");
+	std::thread t2(threadFunction, capture.get(), "2");
 	t1.join();
 	t2.join(); 
 	return 0; 

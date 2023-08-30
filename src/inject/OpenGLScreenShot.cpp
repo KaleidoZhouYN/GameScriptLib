@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 #include <stdio.h>
 #include "detours.h"
-#include "shm_data.h"
+#include "frame_info.h"
 #include "hook.h"
 #include <sstream>
 #define ELPP_THREAD_SAFE
@@ -52,17 +52,15 @@ BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 
     SharedDataHeader shm_header = { width, height, 3 };
 
-    Lock lock(global_sh->mutex);
+    Lock lock(global_sh->get_mutex());
 
     // need try finally later
     // 客户端如何知道保存了多少？写入header structure
-    memcpy(global_sh->shm->data<BYTE*>(), &shm_header, sizeof(shm_header));
-    memcpy(global_sh->shm->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
+    memcpy(global_sh->data<BYTE*>(), &shm_header, sizeof(shm_header));
+    memcpy(global_sh->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
 
-    // global_sh->shm->writebuffer(0, &shm_header, sizeof(shm_header)); 
-    // global_sh->shm->writebuffer(sizeof(shm_header), pixels, width * height * 3); 
     lock.unlock();
-
+    
     delete[] pixels;
     return orig_SwapBuffers(hdc);
 }
@@ -95,7 +93,7 @@ DLL_API long __stdcall SetHook(DWORD processId, const size_t size)
 {
     // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
     std::stringstream ss;
-    ss << std::string("CaptureBuffer_")  << processId;
+    ss << std::string("Capture_")  << processId;
     global_sh = std::make_shared<ScreenShotHook>(ss.str(), size);
     global_sh->start(); 
 
@@ -141,7 +139,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 {
     el::Configurations conf;
     conf.setToDefault();
-    conf.set(el::Level::Global, el::ConfigurationType::Filename, "dll.log");  // 设置日志文件的路径
+    conf.set(el::Level::Global, el::ConfigurationType::Filename, R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\dll.log)");  // 设置日志文件的路径
     el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
     switch (ul_reason_for_call)
     {

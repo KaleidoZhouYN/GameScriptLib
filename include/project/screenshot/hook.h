@@ -2,7 +2,6 @@
 #define _HOOK_H
 #include "mutex.h"
 #include "shared_memory.h"
-#include "screenshot.h"
 
 /* brief: a RAII class for mutex and sharedmemory */
 class ScreenShotHook
@@ -36,12 +35,20 @@ public:
 	}
 
 	//ScreenShotHook(ScreenShotHook& rhs) = delete; 
+	template<typename T>
+	T* data()
+	{
+		return shm->data<T>(); 
+	}
 
-	Mutex* mutex; 
-	SharedMemory* shm;
-
+	Mutex* get_mutex()
+	{
+		return mutex; 
+	}
 private:
 	const std::string& _sName; 
+	Mutex* mutex;
+	SharedMemory* shm;
 };
 
 #endif

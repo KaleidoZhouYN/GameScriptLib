@@ -1,3 +1,5 @@
+#ifndef ONNX_INFER_H
+#define ONNX_INFER_H
 #include <cstdint>
 #include <algorithm>
 #include <cassert>
@@ -66,3 +68,5 @@ Ort::Value pt_to_tensor(T* p, const std::vector<std::int64_t>& shape)
 	auto tensor = Ort::Value::CreateTensor<T>(mem_info, p, calculate_product(shape), shape.data(), shape.size());
 	return tensor;
 }
+
+#endif

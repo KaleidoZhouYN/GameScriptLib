@@ -7,7 +7,11 @@ cmake_minimum_required (VERSION 3.13)
 
 link_directories("C:/code/3rd_lib/Blackbone-master/src/out/build/x64-Debug/BlackBone")
 link_directories("C:/code/3rd_lib/Blackbone-master/src/3rd_party/DIA/lib/amd64")
-add_executable(test_inject test_inject.cpp ${PROJECT_SOURCE_DIR}/src/win/win.cpp ${PROJECT_SOURCE_DIR}/src/inject/injector.cpp "C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")
+add_executable(test_inject test_inject.cpp 
+${PROJECT_SOURCE_DIR}/src/win/win.cpp 
+${PROJECT_SOURCE_DIR}/src/inject/injector.cpp
+${PROJECT_SOURCE_DIR}/src/screenshot/capture_gl.cpp
+"C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")
 target_include_directories(test_inject PRIVATE ${PROJECT_SOURCE_DIR}/include/project/win ${PROJECT_SOURCE_DIR}/include/project/inject)
 target_include_directories(test_inject PRIVATE ${PROJECT_SOURCE_DIR}/include/project/screenshot)
 target_include_directories(test_inject PRIVATE "C:/code/3rd_lib/Blackbone-master/src")
