@@ -9,7 +9,7 @@
 int main() {
 	// 初始化 Onnx Runtime
 	OnnxInfer onnx_infer;
-	onnx_infer.load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\tools\hero_avatar.onnx)");
+	onnx_infer.load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar.onnx)");
 
 	/*/
 	Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXRuntimeModel");
@@ -22,19 +22,23 @@ int main() {
 	*/
 
 	// 加载图像并转为浮点数
-	cv::Mat image = cv::imread(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\photo\3\avatar\木龙.jpg)");
-	cv::resize(image, image, cv::Size(64, 48));
+	cv::Mat image = cv::imread(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\resources\photo\equipment\暗扇.jpg)");
+	cv::resize(image, image, cv::Size(1280, 800));
+
+	cv::Rect rect(1140, 272, 140, 90);
+	cv::Mat croppedImage = image(rect);
+	cv::resize(croppedImage, croppedImage, cv::Size(64, 48));
 	cv::imwrite("temp.jpg", image);
-	image.convertTo(image, CV_32FC3);
-	image /= 255.0f; 
+	croppedImage.convertTo(image, CV_32FC3);
+	croppedImage /= 255.0f;
 
 	// [H,W,C] -> [C,H,W]
 	std::vector<cv::Mat> channels(3);
-	cv::split(image, channels); 
+	cv::split(croppedImage, channels);
 
-	cv::Mat chw(image.rows * image.cols * 3, 1, CV_32F);
+	cv::Mat chw(croppedImage.rows * croppedImage.cols * 3, 1, CV_32F);
 	for (int i = 0; i < 3; ++i) {
-		channels[i].reshape(1, image.rows * image.cols).copyTo(chw.rowRange(i * image.rows * image.cols, (i + 1) * image.rows * image.cols));
+		channels[i].reshape(1, croppedImage.rows * croppedImage.cols).copyTo(chw.rowRange(i * croppedImage.rows * croppedImage.cols, (i + 1) * croppedImage.rows * croppedImage.cols));
 	}
 
 	float* p = chw.ptr<float>(0); 
@@ -64,8 +68,8 @@ int main() {
 	inputs.emplace_back(pt_to_tensor<float>(p, onnx_infer.get_input_shapes()[0]));
 	//onnx_infer.set_inputs(inputs);
 
-	std::vector<std::string> output_name_ = { "21" };
-	std::vector<std::vector<int64_t>> output_shape_ = { {1, 125} };
+	std::vector<std::string> output_name_ = { "57" };
+	std::vector<std::vector<int64_t>> output_shape_ = { {1, 196} };
 	onnx_infer.set_outputs(output_name_, output_shape_);
 	onnx_infer.forward(inputs); 
 	auto* results_tensors = onnx_infer.get_result(output_name_[0]);
@@ -74,7 +78,7 @@ int main() {
 	int max_index = -1;
 	
 	float* results_ = const_cast<Ort::Value*>(results_tensors)->GetTensorMutableData<float>();
-	for (int i = 0; i < 125; i++)
+	for (int i = 0; i < 196; i++)
 		if (max < results_[i])
 		{
 			max = results_[i];
