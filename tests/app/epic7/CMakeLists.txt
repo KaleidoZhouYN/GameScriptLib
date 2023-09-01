@@ -41,3 +41,15 @@ target_link_libraries(test_record PRIVATE ${OpenCV_LIBS})
 target_include_directories(test_record PRIVATE "C:/code/3rd_lib/Blackbone-master/src")
 target_link_libraries(test_record PRIVATE BlackBone diaguids)
 
+add_executable(test_all WIN32
+test_all.cpp
+${PROJECT_SOURCE_DIR}/src/win/win.cpp
+${PROJECT_SOURCE_DIR}/src/inject/injector.cpp
+"C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")
+target_include_directories(test_all PRIVATE ${PROJECT_SOURCE_DIR}/include/project/win)
+target_include_directories(test_all PRIVATE ${PROJECT_SOURCE_DIR}/include/project/inject)
+target_include_directories(test_all PRIVATE "C:/code/3rd_lib/Blackbone-master/src")
+target_include_directories(test_all PRIVATE "C:/code/3rd_lib/easyloggingpp-9.96.4/src")
+
+target_link_libraries(test_all PRIVATE BlackBone diaguids)
+

@@ -5,8 +5,9 @@
 #include "frame_info.h"
 #include "hook.h"
 #include <sstream>
-#define ELPP_THREAD_SAFE
+
 #include "easylogging++.h"
+#define ELPP_THREAD_SAFE
 
 
 // global variable
@@ -89,8 +90,9 @@ void PrintLastError()
 // To do: 2023/08/13
 // 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
 // done: 2023/08/23
-DLL_API long __stdcall SetHook(DWORD processId, const size_t size)
+DLL_API long __stdcall SetHook(DWORD processId, size_t size)
 {
+    LOG(INFO) << "SetHook";
     // 需要在这里处理 SM, Mutex相关的初始化，用一个对像来表示
     std::stringstream ss;
     ss << std::string("Capture_")  << processId;
@@ -111,7 +113,7 @@ DLL_API long __stdcall SetHook(DWORD processId, const size_t size)
     return 0;
 }
 
-DLL_API long __stdcall ReleaseHook(DWORD processId)
+DLL_API long __stdcall ReleaseHook()
 {
     // 重置钩子
     if (orig_SwapBuffers)

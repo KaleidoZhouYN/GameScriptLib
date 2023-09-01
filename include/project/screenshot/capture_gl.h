@@ -7,13 +7,12 @@
 class OpenglCapture
 {
 public:
-	OpenglCapture(HWND hwnd, const std::string dllpath, size_t MaxShmSize) : _hwnd(hwnd), _dllpath(dllpath)
+	OpenglCapture(HWND hwnd, const std::string dllpath, size_t MaxShmSize) : _hwnd(hwnd), _dllpath(dllpath), _MaxShmSize(MaxShmSize)
 	{
-		DWORD hProcessId; 
-		GetWindowThreadProcessId(hwnd, &hProcessId);
-		_injector = std::make_shared<Injector>(hProcessId);
+		GetWindowThreadProcessId(hwnd, &_hProcessId);
+		_injector = std::make_shared<Injector>(hwnd);
 		std::stringstream ss; 
-		ss << "Capture_" << hProcessId;
+		ss << "Capture_" << _hProcessId;
 		_name = ss.str(); 
 		_sh = std::make_shared<ScreenShotHook>(_name, MaxShmSize); 
 	};
@@ -31,7 +30,8 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(_thread_mtx);
 		_injector->inject(_dllpath);
-		_injector->set_hook(); 
+		
+		_injector->set_capture_hook(_MaxShmSize);
 		_sh->start();
 		lock.unlock(); 
 	}
@@ -39,7 +39,7 @@ public:
 	void end()
 	{
 		std::unique_lock<std::mutex> lock(_thread_mtx);
-		_injector->release_hook(); 
+		_injector->release_capture_hook();
 		_injector->release();  
 		lock.unlock(); 
 	}
@@ -52,4 +52,6 @@ private:
 	std::string _dllpath; 
 	std::mutex _thread_mtx; // 多线程的锁
 	std::shared_ptr<ScreenShotHook> _sh;
+	DWORD _hProcessId;
+	size_t _MaxShmSize;
 };

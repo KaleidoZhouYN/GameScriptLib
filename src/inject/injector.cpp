@@ -59,7 +59,8 @@ void Injector::inject(const std::string& dllpath)
 
 // 2023/08/25 to do : 分离inject 和 remotefunctioncall
 // done 2023/08/30
-void Injector::set_hook()
+// to do : 2023/09/01 : 给 set_hook 增加参数, 统一接口
+void Injector::set_hook(const std::string& func_name, LPARAM lParam)
 {
 	if (_injected) {
 		auto _n_dllptr = proc.modules().GetModule(_wdllname);
@@ -68,11 +69,10 @@ void Injector::set_hook()
 			return; 
 		}
 			
-		using my_func_t = long(__stdcall*)(DWORD , const size_t);
-		auto pSetXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, "SetHook");
+		using my_func_t = long(__stdcall*)(LPARAM);
+		auto pSetXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, func_name.c_str());
 		if (pSetXHook) {
-			const size_t size_ = 2560 * 1600 * 3;
-			auto cret = pSetXHook(_hProcessId,size_);
+			auto cret = pSetXHook(lParam);
 			LOG(INFO) << "Set Hook";
 		}
 		else
@@ -82,16 +82,92 @@ void Injector::set_hook()
 	}
 }
 
-void Injector::release_hook()
+void Injector::release_hook(const std::string& func_name, LPARAM lParam)
 {
 	if (_injected) {
-		using my_func_t = long(__stdcall*)(DWORD);
+		using my_func_t = long(__stdcall*)(LPARAM);
+		auto pUnXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, func_name.c_str());
+		if (pUnXHook)
+		{
+			pUnXHook(lParam);
+			LOG(INFO) << "Release hook with processId : " << _hProcessId;
+			//MessageBoxA(0, "Release Hook", "OK", MB_ICONEXCLAMATION);
+		}
+		else {
+
+		}
+	}
+}
+
+void Injector::set_capture_hook(size_t MaxShmSize)
+{
+	if (_injected) {
+		auto _n_dllptr = proc.modules().GetModule(_wdllname);
+		if (!_n_dllptr) {
+			LOG(ERROR) << "Could not found dll module with dllname: " << _dllname;
+			return;
+		}
+
+		using my_func_t = long(__stdcall*)(DWORD , size_t);
+		auto pSetXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, "SetHook");
+		if (pSetXHook) {
+			auto cret = pSetXHook(_hProcessId, MaxShmSize);
+			LOG(INFO) << "Set Capture Hook";
+		}
+		else
+		{
+			LOG(INFO) << "Set Capture Hook Fail";
+		}
+	}
+}
+
+void Injector::release_capture_hook()
+{
+	if (_injected) {
+		using my_func_t = long(__stdcall*)();
 		auto pUnXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, "ReleaseHook");
 		if (pUnXHook)
 		{
-			pUnXHook(_hProcessId);
-			LOG(INFO) << "Release hook with processId : " << _hProcessId;
-			//MessageBoxA(0, "Release Hook", "OK", MB_ICONEXCLAMATION);
+			pUnXHook();
+			LOG(INFO) << "Release Capture hook"; 
+		}
+		else {
+
+		}
+	}
+}
+
+void Injector::set_message_hook(DWORD pid)
+{
+	if (_injected) {
+		auto _n_dllptr = proc.modules().GetModule(_wdllname);
+		if (!_n_dllptr) {
+			LOG(ERROR) << "Could not found dll module with dllname: " << _dllname;
+			return;
+		}
+
+		using my_func_t = long(__stdcall*)(DWORD);
+		auto pSetXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, "SetHook");
+		if (pSetXHook) {
+			auto cret = pSetXHook(pid);
+			LOG(INFO) << "Set Message Hook";
+		}
+		else
+		{
+			LOG(INFO) << "Set Message Hook Fail";
+		}
+	}
+}
+
+void Injector::release_message_hook()
+{
+	if (_injected) {
+		using my_func_t = long(__stdcall*)();
+		auto pUnXHook = blackbone::MakeRemoteFunction<my_func_t>(proc, _wdllname, "ReleaseHook");
+		if (pUnXHook)
+		{
+			pUnXHook();
+			LOG(INFO) << "Release message hook";
 		}
 		else {
 
