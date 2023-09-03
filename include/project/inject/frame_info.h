@@ -20,7 +20,7 @@ public:
     FrameInfo() = default;
     ~FrameInfo()
     {
-        if (!buffer)
+        if (buffer)
         {
             delete buffer;
         }

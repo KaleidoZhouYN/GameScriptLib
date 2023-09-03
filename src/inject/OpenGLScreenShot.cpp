@@ -57,8 +57,8 @@ BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 
     // need try finally later
     // 客户端如何知道保存了多少？写入header structure
-    memcpy(global_sh->data<BYTE*>(), &shm_header, sizeof(shm_header));
-    memcpy(global_sh->data<BYTE*>() + sizeof(shm_header), pixels, width * height * 3);
+    memcpy(global_sh->data<BYTE>(), &shm_header, sizeof(shm_header));
+    memcpy(global_sh->data<BYTE>() + sizeof(shm_header), pixels, width * height * 3);
 
     lock.unlock();
     

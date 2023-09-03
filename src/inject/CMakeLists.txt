@@ -12,12 +12,14 @@ include_directories(${PROJECT_SOURCE_DIR}/include/project/win)
 
 # ´´½¨DLL
 link_directories("C:/code/3rd_lib/Detours-4.0.1/lib.X64")
+
 add_library(OpenGLScreenShotDLL SHARED  "OpenGLScreenShot.cpp" 
 ${PROJECT_SOURCE_DIR}/src/screenshot/screenshot.cpp
 "C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")
 
 target_link_libraries(OpenGLScreenShotDLL PRIVATE OpenGL32 detours)
 
-add_library(MouseDLL SHARED  
-"mouse_message.cpp" 
-${PROJECT_SOURCE_DIR}/src/win/win.cpp)
+#add_library(MouseWin32DLL SHARED  
+#"mouse_message.cpp" 
+#${PROJECT_SOURCE_DIR}/src/win/win.cpp
+#"C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")

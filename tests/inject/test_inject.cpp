@@ -26,10 +26,12 @@ BOOL ReadBufferAndShow(OpenglCapture* sh, const std::string& index)
 			cv::Mat frame(pixels.header.height, pixels.header.width, CV_8UC3, pixels.buffer);
 			// 上下翻转，因为openGL的起点是左下角
 			cv::flip(frame, frame, 0);
-			cv::resize(frame, frame, cv::Size(400, 225));
-			//cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
+			cv::resize(frame, frame, cv::Size(800, 455));
+			cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
 			cv::imshow(name_, frame);
+			break;
 		}
+
 		if (cv::waitKey(40) == 'q')
 			break;
 		dis_lock.unlock(); 
