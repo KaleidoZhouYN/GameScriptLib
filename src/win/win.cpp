@@ -127,3 +127,21 @@ BOOL FindHWndRedraw(HWND hWnd, LPARAM lParam)
 	}
 	return FALSE; 
 }
+
+BOOL GetActuallWindowRect(HWND hwnd, LPRECT lprect)
+{
+	// 获取窗口的DPI
+	UINT dpi = GetDpiForWindow(hwnd);
+	float scale = static_cast<float>(dpi) / STD_DPI;
+
+	// 获取窗口大小
+	RECT windowRect;
+	GetWindowRect(hwnd, &windowRect);
+
+	lprect->left = static_cast<int>(windowRect.left * scale);
+	lprect->right = static_cast<int>(windowRect.right * scale);
+	lprect->top = static_cast<int>(windowRect.top * scale);
+	lprect->bottom = static_cast<int>(windowRect.bottom * scale);
+
+	return 0; 
+}

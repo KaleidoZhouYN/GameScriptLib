@@ -6,23 +6,15 @@
 
 int CaptureWindowScreenshotCPU(HWND hWnd, const char* savePath)
 {
-	// 获取窗口的DPI
-	UINT dpi = GetDpiForWindow(hWnd);
-	float scale = static_cast<float>(dpi) / STD_DPI;
-
-
 	// 获取窗口 Device Context 
 	// 设备上下文(DC)是一个GDI（图形设备接口）结构，它定义了一系列的绘图操作，如线条绘制、填充、文本输出
 	HDC hwindowDC = GetDC(hWnd);
 
-	// 获取窗口大小
-	RECT windowRect; 
-	GetWindowRect(hWnd, &windowRect);
-	int width = windowRect.right - windowRect.left; 
-	int height = windowRect.bottom - windowRect.top; 
-
-	width = static_cast<int>(width * scale);
-	height = static_cast<int>(height * scale);
+	// 获取窗口实际大小
+	RECT rect; 
+	GetActuallWindowRect(hWnd, &rect);
+	int width = rect.right - rect.left;
+	int height = rect.bottom - rect.top; 
 
 	// 创建兼容的DC和位图
 	HDC hwindowCompatibleDC = CreateCompatibleDC(hwindowDC);
