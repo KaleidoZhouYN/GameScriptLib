@@ -44,7 +44,7 @@ std::atomic<bool> g_show(false);
 NOTIFYICONDATA nid = { sizeof(nid) };
 
 size_t g_hero_cnt = 0; 
-
+HMENU hMenu;
 
 
 // constant 
@@ -55,8 +55,10 @@ const UINT ID_INPUT = 104;
 const UINT ID_SHOW = 105;
 const UINT ID_SAVE_RTA = 106; 
 const UINT ID_END = 107;
+const UINT ID_CLOSE_MENU = 108;
 const UINT ID_COMBOBOX = 201;
 const UINT WM_TRAYICON = WM_USER + 1;
+
 
 const int g_class_num = 214;
 
@@ -180,7 +182,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 
         // 如果目标窗口是活动的，且鼠标位置在目标窗口内，则处理消息
         if (g_target_hwnd == NULL)
-            goto fail; 
+            goto end; 
         RECT rect;
         ::GetWindowRect(g_target_hwnd, &rect);
 
@@ -200,31 +202,36 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             {
             case WM_RBUTTONUP:
             {
+                if (hMenu)
+                {
+                    DestroyMenu(hMenu);
+                }
                 // 创建一个菜单
-                HMENU hMenu = CreatePopupMenu(); 
+                hMenu = CreatePopupMenu(); 
                 if (!hMenu)
                     return 0; 
 
+                AppendMenuA(hMenu, MF_STRING, ID_CLOSE_MENU, "关闭菜单");
                 AppendMenuA(hMenu, MF_STRING, ID_AUTOSTART, "自动开始录入");
                 AppendMenuA(hMenu, MF_STRING, ID_AUTOSTOP, "停止自动录入");
-                AppendMenuA(hMenu, MF_STRING, ID_INPUT, "录入");
+                AppendMenuA(hMenu, MF_STRING, ID_INPUT, "录入当前装备");
                 AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
                 AppendMenuA(hMenu, MF_STRING, ID_SHOW, "显示装备");
                 AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
                 AppendMenuA(hMenu, MF_STRING, ID_SAVE_RTA, "截取RTA记录");
                 AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
-                AppendMenuA(hMenu, MF_STRING, ID_END, "结束");
+                AppendMenuA(hMenu, MF_STRING, ID_END, "结束程序");
 
                 TrackPopupMenu(hMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, NULL);
-                DestroyMenu(hMenu);
             }
                 break;
                 // ... 其他鼠标消息处理 ...
             }
+
         }
     }
 
- fail:
+end:
     return CallNextHookEx(hMouseHook, nCode, wParam, lParam);
 }
 
