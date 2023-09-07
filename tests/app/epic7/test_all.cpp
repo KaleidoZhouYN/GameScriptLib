@@ -44,7 +44,6 @@ std::atomic<bool> g_show(false);
 NOTIFYICONDATA nid = { sizeof(nid) };
 
 size_t g_hero_cnt = 0; 
-HMENU hMenu;
 
 
 // constant 
@@ -202,12 +201,8 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             {
             case WM_RBUTTONUP:
             {
-                if (hMenu)
-                {
-                    DestroyMenu(hMenu);
-                }
                 // 创建一个菜单
-                hMenu = CreatePopupMenu(); 
+                HMENU hMenu = CreatePopupMenu();
                 if (!hMenu)
                     return 0; 
 
@@ -223,6 +218,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
                 AppendMenuA(hMenu, MF_STRING, ID_END, "结束程序");
 
                 TrackPopupMenu(hMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, NULL);
+                DestroyMenu(hMenu);
             }
                 break;
                 // ... 其他鼠标消息处理 ...

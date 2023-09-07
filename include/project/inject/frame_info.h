@@ -22,7 +22,8 @@ public:
     {
         if (buffer)
         {
-            delete buffer;
+            delete[] buffer;
+            buffer = nullptr; 
         }
     }
     int get_buffer_size()
@@ -35,7 +36,11 @@ public:
         memcpy(&header, address, sizeof(header));
         int buffer_size = get_buffer_size();
         if (buffer)
-            delete buffer;
+        {
+            delete[] buffer;
+            buffer = nullptr;
+        }
+       
         if (buffer_size > 0)
         {
             buffer = new BYTE[buffer_size];
