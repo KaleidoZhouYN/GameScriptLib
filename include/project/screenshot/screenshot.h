@@ -4,7 +4,6 @@
 #include "win.h"
 #include <GL/gl.h>
 #include <stdio.h>
-#include "hook.h"
 
 
 // DEFINE function

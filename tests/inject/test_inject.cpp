@@ -27,9 +27,9 @@ BOOL ReadBufferAndShow(OpenglCapture* sh, const std::string& index)
 			// 上下翻转，因为openGL的起点是左下角
 			cv::flip(frame, frame, 0);
 			cv::resize(frame, frame, cv::Size(800, 455));
-			cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
+			//cv::imwrite(R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\screenshot_SM.bmp)", frame);
 			cv::imshow(name_, frame);
-			break;
+			//break;
 		}
 
 		if (cv::waitKey(40) == 'q')
@@ -112,6 +112,7 @@ int main() {
 	const size_t MaxShmSize = 2560 * 1600 * 3;
 	capture = std::make_shared<OpenglCapture>(hwnd, dllPath, MaxShmSize);
 	capture->start();
+
 
 	std::thread t1(threadFunction, capture.get(), "1");
 	//std::thread t2(threadFunction, capture.get(), "2");

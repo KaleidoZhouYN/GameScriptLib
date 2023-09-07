@@ -11,6 +11,10 @@ GameScritLib是一个个人使用的游戏脚本库，主要想要实现的功�
 7. ...
 
 # 最新更新
+* 2023/09/07
+
+    [多进程间读写模型（IPCRW)](./doc/screenshot/README.md)
+
 * 2023/09/05
 
     [第七史诗辅助V1.1](./doc/app/e7/README.md)

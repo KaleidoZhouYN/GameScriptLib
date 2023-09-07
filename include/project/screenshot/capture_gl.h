@@ -1,6 +1,6 @@
 // define a class for opengl_render application capter
 #include "injector.h"
-#include "hook.h"
+#include "ipcrw.h"
 #include "frame_info.h"
 
 // capture 最好是singleton,主线程控制开关
@@ -14,7 +14,8 @@ public:
 		std::stringstream ss; 
 		ss << "Capture_" << _hProcessId;
 		_name = ss.str(); 
-		_sh = std::make_shared<ScreenShotHook>(_name, MaxShmSize); 
+		//_sh = std::make_shared<ScreenShotHook>(_name, MaxShmSize); 
+		_ipcrw = std::make_shared<IPCRW>(_name, _MaxShmSize);
 	};
 	~OpenglCapture() 
 	{
@@ -32,7 +33,8 @@ public:
 		_injector->inject(_dllpath);
 		
 		_injector->set_capture_hook(_MaxShmSize);
-		_sh->start();
+		//_sh->start();
+		_ipcrw->start(); 
 		lock.unlock(); 
 	}
 
@@ -51,7 +53,8 @@ private:
 	std::shared_ptr<Injector> _injector; 
 	std::string _dllpath; 
 	std::mutex _thread_mtx; // 多线程的锁
-	std::shared_ptr<ScreenShotHook> _sh;
+	//std::shared_ptr<ScreenShotHook> _sh;
+	std::shared_ptr<IPCRW> _ipcrw; 
 	DWORD _hProcessId;
 	size_t _MaxShmSize;
 };

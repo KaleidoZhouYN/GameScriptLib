@@ -185,11 +185,14 @@ private:
 class Lock
 {
 public:
-	Lock(Mutex* mutex) { 
-		_mutex = mutex;
-		_mutex->lock();
-		isLocked = true; 
+	Lock(Mutex* mutex): _mutex(mutex) { 
+		lock(); 
 	};
+	void lock()
+	{
+		_mutex->lock();
+		isLocked = true;
+	}
 	~Lock()
 	{
 		// avoid duplicated release

@@ -49,7 +49,17 @@ public:
         }
         else {
             usable = false;
+            buffer = nullptr; 
         }
+    }
+
+    void write(BYTE* address)
+    {
+        memcpy(address, &header, sizeof(header));
+        int buffer_size = get_buffer_size();
+        if (!buffer)
+            return;
+        memcpy(address + sizeof(header), buffer, buffer_size);
     }
 };
 

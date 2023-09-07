@@ -25,3 +25,7 @@
 ## 额外
 
 1. 在rta对局记录界面，右键，选择截取rta图片，则可以在./rta文件夹下获得有马赛克的截图，方便上传至网络数据库
+
+## 视频地址
+
+https://www.bilibili.com/video/BV1x34y1T7nD/
