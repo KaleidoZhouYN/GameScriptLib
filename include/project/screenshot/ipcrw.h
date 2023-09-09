@@ -60,24 +60,36 @@ public:
 	{
 		// read_count + 1
 		Lock lock(_mutex.get());
-		int& read_count = reinterpret_cast<int*>(_shmem->data<BYTE>())[0];
+		int& read_count = _shmem->data<int>()[0];
 		read_count += 1;
 		lock.unlock();
 
-		pf(_shmem->data<BYTE>() + sizeof(int)); 
+		// 考虑异常安全
+		try {
+			pf(_shmem->data<BYTE>() + sizeof(int));
+		}
+		catch (std::exception& e)
+		{
+			lock.lock();
+			read_count -= 1;
+			lock.unlock();
 
-		// read_count - 1
+			throw e; 
+		}
+
 		lock.lock(); 
 		read_count -= 1;
 		lock.unlock();
 	}
+
+	// 2023/09/09 : to do 如何使用Event来避免忙等？
 	template<typename Func>
 	void write_to_sm(Func pf)
 	{
 		while (true)
 		{
 			Lock lock(_mutex.get());
-			int& read_count = reinterpret_cast<int*>(_shmem->data<BYTE>())[0];
+			int& read_count = _shmem->data<int>()[0];
 			if (read_count == 0)
 			{
 				pf(_shmem->data<BYTE>() + sizeof(int)); 

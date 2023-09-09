@@ -18,7 +18,7 @@ add_library(OpenGLScreenShotDLL SHARED  "OpenGLScreenShot.cpp"
 
 target_link_libraries(OpenGLScreenShotDLL PRIVATE OpenGL32 detours)
 
-#add_library(MouseWin32DLL SHARED  
-#"mouse_message.cpp" 
-#${PROJECT_SOURCE_DIR}/src/win/win.cpp
-#"C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc")
+add_library(D3D11ScreenShotDLL SHARED  "DirectX11.cpp"
+"C:/code/3rd_lib/easyloggingpp-9.96.4/src/easylogging++.cc" )
+
+target_link_libraries(D3D11ScreenShotDLL PRIVATE detours)
