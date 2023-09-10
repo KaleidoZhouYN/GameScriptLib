@@ -37,6 +37,15 @@ public:
         buffer = new BYTE[buffer_size];
     }
 
+    void delete_buffer()
+    {
+        if (buffer)
+        {
+            delete[] buffer; 
+            buffer = nullptr; 
+        }
+    }
+
     void read(BYTE* address)
     {
         memcpy(&header, address, sizeof(header));

@@ -107,12 +107,12 @@ int main() {
 	conf.set(el::Level::Global, el::ConfigurationType::Filename, R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\tests\inject\test_inject.log)");  // 设置日志文件的路径
 	el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
 
-	//HWND hwnd = GetHWnd("雷電模擬器");
-	HWND hwnd = GetHWnd("NoxPlayer");
+	HWND hwnd = GetHWnd("雷電模擬器");
+	//HWND hwnd = GetHWnd("NoxPlayer");
 
 
-	//const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
-	const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\D3D11ScreenShotDLL.dll)";
+	const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
+	//const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\D3D11ScreenShotDLL.dll)";
 
 	const size_t MaxShmSize = 2560 * 1600 * 3;
 	capture = std::make_shared<OpenglCapture>(hwnd, dllPath, MaxShmSize);

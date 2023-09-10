@@ -7,6 +7,9 @@
 #include <sstream>
 #include <functional>
 #include <stdexcept>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "easylogging++.h"
 #define ELPP_THREAD_SAFE
@@ -44,28 +47,45 @@ DLL_API long __stdcall ReleaseHook();
 @brief: swapbuffer的钩子函数, 将frame binary data 保存进入shared memory
 @param: hdc, 窗口的Device Context Handle
 */
+
+std::mutex mtx; 
+std::condition_variable cv; 
+FrameInfo shared_frame; 
+bool ready = false;  // 避免虚假唤醒
+std::thread cus_thread; 
+std::atomic<bool> terminate_flag(false);
+
+void WINAPI customer()
+{
+    while (!terminate_flag)
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        while (!ready)
+        {
+            cv.wait(lock);
+        }
+        auto boundFn = std::bind(&FrameInfo::write, &shared_frame, std::placeholders::_1);
+        g_ipcrw->write_to_sm(boundFn);
+        shared_frame.delete_buffer();
+        ready = false; 
+    }
+}
+
 BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 {
     try {
-        FrameInfo frame;
-        int height = 0, width = 0;
-        GetWinPixels(hdc, reinterpret_cast<LPARAM>(&frame.buffer), width, height);
-        SharedDataHeader shm_header = { width, height, 3 };
+        if (mtx.try_lock())
+        {
+            //FrameInfo frame;
+            int height = 0, width = 0;
+            GetWinPixels(hdc, reinterpret_cast<LPARAM>(&shared_frame.buffer), width, height);
+            SharedDataHeader shm_header = { width, height, 3 };
 
-        /*
-        Lock lock(global_sh->get_mutex());
-        // need try finally later
-        // 客户端如何知道保存了多少？写入header structure
-        memcpy(global_sh->data<BYTE>(), &shm_header, sizeof(shm_header));
-        memcpy(global_sh->data<BYTE>() + sizeof(shm_header), pixels, width * height * 3);
-        lock.unlock();
-        */
-        
-        frame.header = shm_header;
-        auto boundFn = std::bind(&FrameInfo::write, &frame, std::placeholders::_1);
-        g_ipcrw->write_to_sm(boundFn);
-
-        //delete[] pixels;
+            shared_frame.header = shm_header;
+            ready = true;
+            cv.notify_all();
+            mtx.unlock(); 
+        }
     }
     catch (const std::exception& e)
     {
@@ -110,6 +130,8 @@ DLL_API long __stdcall SetHook(DWORD processId, size_t size)
     g_ipcrw = std::make_shared<IPCRW>(ss.str(), size);
     g_ipcrw->start(); 
 
+    cus_thread = std::thread(customer);
+
     // 加入钩子
     orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
     if (orig_SwapBuffers)
@@ -126,6 +148,7 @@ DLL_API long __stdcall SetHook(DWORD processId, size_t size)
 
 DLL_API long __stdcall ReleaseHook()
 {
+    terminate_flag = true; 
     // 重置钩子
     if (orig_SwapBuffers)
     {
