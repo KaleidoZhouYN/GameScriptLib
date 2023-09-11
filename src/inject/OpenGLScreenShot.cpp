@@ -55,7 +55,7 @@ bool ready = false;  // ±‹√‚–ÈºŸªΩ–—
 std::thread cus_thread; 
 std::atomic<bool> terminate_flag(false);
 
-void WINAPI customer()
+void WINAPI consumer()
 {
     while (!terminate_flag)
     {
@@ -130,7 +130,7 @@ DLL_API long __stdcall SetHook(DWORD processId, size_t size)
     g_ipcrw = std::make_shared<IPCRW>(ss.str(), size);
     g_ipcrw->start(); 
 
-    cus_thread = std::thread(customer);
+    cus_thread = std::thread(consumer);
 
     // º”»Îπ≥◊”
     orig_SwapBuffers = (SwapBuffersType)GetProcAddress(GetModuleHandle("gdi32.dll"), "SwapBuffers");
