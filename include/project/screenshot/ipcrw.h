@@ -130,6 +130,39 @@ private:
 	std::shared_ptr<Semaphore> _semaphore; 
 };
 
+// 异常安全
+class LOCKRAII
+{
+public:
+	LOCKRAII(RWBasic* pLock, bool isRead)
+	{
+		_pLock = pLock; 
+		_bRead = isRead; 
+		lock(); 
+	}
+	~LOCKRAII()
+	{
+		unlock(); 
+	}
+	void lock()
+	{
+		if (_bRead)
+			_pLock->read_lock();
+		else
+			_pLock->write_lock(); 
+	}
+	void unlock()
+	{
+		if (_bRead)
+			_pLock->read_unlock();
+		else
+			_pLock->write_unlock(); 
+	}
+private:
+	RWBasic* _pLock; 
+	bool _bRead;
+};
+
 class IPCRW
 {
 public:
@@ -154,23 +187,23 @@ public:
 	}
 	void read(BYTE* buffer, size_t size_)
 	{
-		_pImpl->read_lock(); 
+		LOCKRAII lock(_pImpl, true);
 		memcpy(buffer, _pImpl->data(), size_);
-		_pImpl->read_unlock(); 
+		lock.unlock(); 
 	}
 	void write(BYTE* buffer, size_t size_)
 	{
-		_pImpl->write_lock(); 
+		LOCKRAII lock(_pImpl, false);
 		memcpy(_pImpl->data(), buffer, size_);
-		_pImpl->write_unlock(); 
+		lock.unlock(); 
 	}
 	
 	template<typename Func>
 	void read_from_sm(Func pf)
 	{
-		_pImpl->read_lock(); 
+		LOCKRAII lock(_pImpl, true);
 		pf(_pImpl->data());
-		_pImpl->read_unlock(); 
+		lock.unlock(); 
 	}
 
 	// 2023/09/09 : to do 如何使用Event来避免忙等？
@@ -178,9 +211,9 @@ public:
 	template<typename Func>
 	void write_to_sm(Func pf)
 	{
-		_pImpl->write_lock(); 
+		LOCKRAII lock(_pImpl, false);
 		pf(_pImpl->data()); 
-		_pImpl->write_unlock(); 
+		lock.unlock(); 
 	}
 private:
 	RWBasic* _pImpl; 

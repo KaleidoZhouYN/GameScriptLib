@@ -14,9 +14,11 @@ constexpr int IBF_R8G8B8A8 = 0;
 constexpr int IBF_B8G8R8A8 = 1;
 constexpr int IBF_R8G8B8 = 2;
 
-typedef long(WINAPI* BufferType)(IDXGISwapChain* pswapchain, UINT x1, UINT x2);
+typedef HRESULT(WINAPI* BufferType)(IDXGISwapChain* pswapchain, UINT x1, UINT x2);
 BufferType orig_address = NULL; 
 std::shared_ptr<IPCRW> g_ipcrw; 
+typedef uint64_t uint150_t;
+uint150_t* g_methodsTable = NULL;
 
 #define DLL_API extern "C" __declspec(dllexport)
 
@@ -127,14 +129,74 @@ DLL_API long __stdcall SetHook(DWORD processId, size_t size)
     g_ipcrw = std::make_shared<IPCRW>(ss.str(), size);
     g_ipcrw->start();
 
+    HMODULE libD3D11 = ::GetModuleHandle("d3d11.dll");
+    void* D3D11CreateDeviceAndSwapChain = ::GetProcAddress(libD3D11, "D3D11CreateDeviceAndSwapChain");
+    D3D_FEATURE_LEVEL featureLevel;
+    const D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_11_0 };
+
+    DXGI_RATIONAL refreshRate;
+    refreshRate.Numerator = 60;
+    refreshRate.Denominator = 1;
+
+    DXGI_MODE_DESC bufferDesc;
+    bufferDesc.Width = 100;
+    bufferDesc.Height = 100;
+    bufferDesc.RefreshRate = refreshRate;
+    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+    DXGI_SAMPLE_DESC sampleDesc;
+    sampleDesc.Count = 1;
+    sampleDesc.Quality = 0;
+
+    DXGI_SWAP_CHAIN_DESC swapChainDesc;
+    swapChainDesc.BufferDesc = bufferDesc;
+    swapChainDesc.SampleDesc = sampleDesc;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = 1;
+    swapChainDesc.Windowed = 1;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    IDXGISwapChain* swapChain;
+    ID3D11Device* device;
+    ID3D11DeviceContext* context;
+    ((long(__stdcall*)(
+        IDXGIAdapter*,
+        D3D_DRIVER_TYPE,
+        HMODULE,
+        UINT,
+        const D3D_FEATURE_LEVEL*,
+        UINT,
+        UINT,
+        const DXGI_SWAP_CHAIN_DESC*,
+        IDXGISwapChain**,
+        ID3D11Device**,
+        D3D_FEATURE_LEVEL*,
+        ID3D11DeviceContext**))(D3D11CreateDeviceAndSwapChain))(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, featureLevels, 2, D3D11_SDK_VERSION, &swapChainDesc, &swapChain, &device, &featureLevel, &context);
+    g_methodsTable = (uint150_t*)::calloc(205, sizeof(uint150_t));
+    ::memcpy(g_methodsTable, *(uint150_t**)swapChain, 18 * sizeof(uint150_t));
+    ::memcpy(g_methodsTable + 18, *(uint150_t**)device, 43 * sizeof(uint150_t));
+    ::memcpy(g_methodsTable + 18 + 43, *(uint150_t**)context, 144 * sizeof(uint150_t));
+    swapChain->Release();
+    swapChain = NULL;
+    device->Release();
+    device = NULL;
+    context->Release();
+    context = NULL;
+
+
     // ¼ÓÈë¹³×Ó
-    orig_address = (BufferType)GetProcAddress(GetModuleHandle("d3d11.dll"), "D3D11CreateDeviceAndSwapChain");
+    orig_address = (BufferType)(g_methodsTable[8]);
     if (orig_address)
     {
         LOG(INFO) << "Begin Hook with SharedMemory";
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)orig_address, hooked_SharedMemory);
+        if (DetourAttach(&(PVOID&)orig_address, hooked_SharedMemory) != NO_ERROR)
+        {
+            LOG(INFO) << "bind error";
+        }
         DetourTransactionCommit();
     }
 

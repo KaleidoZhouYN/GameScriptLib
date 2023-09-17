@@ -1,11 +1,13 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include <stdio.h>
+
 #include "detours.h"
 #include "frame_info.h"
 #include "ipcrw.h"
 #include <sstream>
 #include <functional>
+
 #include <stdexcept>
 #include <thread>
 #include <mutex>
@@ -18,14 +20,63 @@
 // global variable
 typedef BOOL(WINAPI* SwapBuffersType)(HDC hdc);
 SwapBuffersType orig_SwapBuffers = NULL; 
-//std::shared_ptr<ScreenShotHook> global_sh; 
 std::shared_ptr<IPCRW> g_ipcrw; 
 
 
 #define DLL_API extern "C" __declspec(dllexport)
 
 
+//buffer operate from origin buffer to opencv::BGR
+void FmtProcess(FrameInfo* pframe, RENDER_TYPE render_type, IBF fmt)
+{
+    byte* buffer = pframe->buffer;
+    int width = pframe->header.width, height = pframe->header.height, channel = pframe->header.channel;
+
+    if (render_type == RENDER_TYPE::OPENGL)
+    {
+        // fliplr
+        /*
+        std::allocator<byte> byte_alloc;
+        size_t copy_size = width * channel;
+        byte* tmp = byte_alloc.allocate(copy_size);
+        byte* src_address = nullptr;
+        byte* dst_address = nullptr;
+        for (int i = 0; i < height / 2; i++)
+        {
+            src_address = buffer + i * copy_size; 
+            dst_address = buffer + (height - i -1) * copy_size; 
+            std::memcpy(tmp,src_address, copy_size);
+            std::memcpy(src_address, dst_address, copy_size);
+            std::memcpy(dst_address, tmp, copy_size); 
+        }
+        */
+        size_t copy_size = width * channel;
+        for (int i = 0; i < height / 2; i++)
+        {
+            byte* src_address = buffer + i * copy_size; 
+            byte* dst_address = buffer + (height - i - 1) * copy_size; 
+            std::swap_ranges(src_address, src_address+ copy_size, dst_address);
+        }
+        return; 
+    }
+    if (fmt == IBF::R8G8B8 || fmt == IBF::R8G8B8A8)
+    {
+        // RGB8BGR
+        byte* src = buffer; 
+        size_t copy_size = width * channel;
+        for (int i = 0; i < height; i++)
+            for (int j = 0; j < width; j++)
+            { 
+                std::swap(src[0], src[2]);
+                src += channel; 
+            }
+        return; 
+    }
+    return;
+}
+
 // To do : Change width, heigth to RParam
+/*
 BOOL GetWinPixels(HDC hdc, LPARAM lParam, int& width, int& height) {
     HWND hwnd = WindowFromDC(hdc);
     RECT rect;
@@ -39,6 +90,22 @@ BOOL GetWinPixels(HDC hdc, LPARAM lParam, int& width, int& height) {
     // 使用glReadPixels获取当前帧的像素数据
     glReadBuffer(GL_BACK);  // 设置为读取后缓冲区
     glReadPixels(0, 0, width, height, GL_BGR_EXT, GL_UNSIGNED_BYTE, *pixels);  // 注意: 使用GL_BGR_EXT因为BMP的数据布局,BMP为BGR,openGL标准格式为RGB
+    return TRUE; 
+}
+*/
+
+BOOL GetWinPixels(HDC hdc, LPARAM lParam)
+{
+    HWND hwnd = WindowFromDC(hdc);
+    RECT rect; 
+    GetClientRect(hwnd, &rect);
+    FrameInfo* pframe = reinterpret_cast<FrameInfo*>(lParam);
+    pframe->header.width = rect.right - rect.left; 
+    pframe->header.height = rect.bottom - rect.top; 
+    pframe->header.channel = 3; 
+
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, pframe->header.width, pframe->header.height, GL_BGR_EXT, GL_UNSIGNED_BYTE, pframe->buffer);  // 注意: 使用GL_BGR_EXT因为BMP的数据布局,BMP为BGR,openGL标准格式为RGB
     return TRUE; 
 }
 
@@ -71,20 +138,20 @@ void WINAPI consumer()
     }
 }
 
+// 发生异常的时候如何安全释放钩子
 BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 {
     try {
-        if (mtx.try_lock())
+        std::unique_lock<std::mutex> lock(mtx, std::defer_lock);
+        if (lock.try_lock())
         {
             //FrameInfo frame;
             int height = 0, width = 0;
-            GetWinPixels(hdc, reinterpret_cast<LPARAM>(&shared_frame.buffer), width, height);
-            SharedDataHeader shm_header = { width, height, 3 };
-
-            shared_frame.header = shm_header;
+            GetWinPixels(hdc, reinterpret_cast<LPARAM>(&shared_frame));
+            //SharedDataHeader shm_header = { width, height, 3 };
+            //shared_frame.header = shm_header;
             ready = true;
             cv.notify_all();
-            mtx.unlock(); 
         }
     }
     catch (const std::exception& e)
@@ -157,11 +224,10 @@ DLL_API long __stdcall ReleaseHook()
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&)orig_SwapBuffers, hooked_SwapBuffers_SharedMemory);
         DetourTransactionCommit();
-    }
-
-    // 释放资源
-    //global_sh.reset(); 
-    g_ipcrw.reset(); 
+        orig_SwapBuffers = nullptr; 
+        // 释放资源 
+        g_ipcrw.reset();
+    } 
 
     return 0;
 }

@@ -1,6 +1,23 @@
 #ifndef _SHM_DATA_H
 #define _SHM_DATA_H
 
+enum RENDER_TYPE
+{
+    NORMAL = 0,
+    GDI = 1,
+    DX = 2,
+    OPENGL = 3
+};
+
+enum IBF
+{
+    B8G8R8 = 0,
+    R8G8B8 = 1,
+    B8G8R8A8 = 2,
+    R8G8B8A8 = 3,
+};
+
+
 struct SharedDataHeader {
     int width, height;
     int channel;
