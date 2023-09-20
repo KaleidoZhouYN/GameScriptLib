@@ -108,7 +108,7 @@ int main() {
 	el::Loggers::reconfigureLogger("default", conf); // 重新配置默认的 logger
 
 	//HWND hwnd = GetHWnd("雷電模擬器");
-	HWND hwnd = GetHWnd("NoxPlayer");
+	HWND hwnd = GetHWnd("幻塔  ");
 
 
 	//const char* dllPath = R"(C:\Users\zhouy\source\repos\GameScriptLib\out\build\x64-debug\src\inject\OpenGLScreenShotDLL.dll)";
