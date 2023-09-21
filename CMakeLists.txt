@@ -13,7 +13,7 @@ endif()
 
 project ("GameScriptLib")
 
-add_subdirectory(src)
+#add_subdirectory(src)
 add_subdirectory(tests)
 
 # 将源代码添加到此项目的可执行文件。

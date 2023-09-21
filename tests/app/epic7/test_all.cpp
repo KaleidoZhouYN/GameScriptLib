@@ -325,7 +325,7 @@ void record()
 {
     FrameInfo frame;
     g_capture->capture_frame(&frame);
-    if (frame.usable) {
+    if (frame.buffer) {
         cv::Mat image = cv::Mat(frame.header.height, frame.header.width, CV_8UC3, frame.buffer);
         cv::flip(image, image, 0);
         cv::resize(image, image, cv::Size(1280, 800));
@@ -510,7 +510,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
             // 显示装备
             FrameInfo frame;
             g_capture->capture_frame(&frame);
-            if (frame.usable) {
+            if (frame.buffer) {
                 cv::Mat image = cv::Mat(frame.header.height, frame.header.width, CV_8UC3, frame.buffer);
                 cv::flip(image, image, 0);
                 cv::resize(image, image, cv::Size(1280, 800));
@@ -555,7 +555,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
             // 打马赛克并保存图片
             FrameInfo frame;
             g_capture->capture_frame(&frame);
-            if (frame.usable) {
+            if (frame.buffer) {
                 cv::Mat image = cv::Mat(frame.header.height, frame.header.width, CV_8UC3, frame.buffer);
                 cv::flip(image, image, 0);
                 cv::resize(image, image, cv::Size(1280, 720));

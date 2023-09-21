@@ -2,8 +2,8 @@ include_directories(  ${PROJECT_SOURCE_DIR}/include/project/net)
 include_directories(  "C:/code/3rd_lib/onnxruntime-win-x64-1.15.1/include")
 include_directories(  ${PROJECT_SOURCE_DIR}/include/project/control)
 include_directories(  ${PROJECT_SOURCE_DIR}/include/project/win)
-#link_directories("C:/code/3rd_lib/Blackbone-master/src/out/build/x64-Debug/BlackBone")
-link_directories("C:/code/3rd_lib/Blackbone-master/src/out/build/x64-Release/BlackBone")
+link_directories("C:/code/3rd_lib/Blackbone-master/src/out/build/x64-Debug/BlackBone")
+#link_directories("C:/code/3rd_lib/Blackbone-master/src/out/build/x64-Release/BlackBone")
 link_directories("C:/code/3rd_lib/Blackbone-master/src/3rd_party/DIA/lib/amd64")
 include_directories(  ${PROJECT_SOURCE_DIR}/include/project/control)
 include_directories(  ${PROJECT_SOURCE_DIR}/include/project/win)
@@ -12,16 +12,23 @@ include_directories(  ${PROJECT_SOURCE_DIR}/include/project/screenshot)
 include_directories(  "C:/code/3rd_lib/easyloggingpp-9.96.4/src")
 include_directories("C:/code/3rd_lib/Blackbone-master/src")
 
-set(OpenCV_DIR "C:/code/3rd_lib/opencv-4.7.0/out/install/x64-Release")
+set(OpenCV_DIR "C:/code/3rd_lib/opencv-4.7.0/out/install/x64-Debug")
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-#add_executable(test_net test_net.cpp ${PROJECT_SOURCE_DIR}/src/net/onnx_infer.cpp )
+add_executable(test_net 
+test_net.cpp 
+${PROJECT_SOURCE_DIR}/src/net/onnx_infer.cpp
+${PROJECT_SOURCE_DIR}/src/net/ncnn_infer.cpp )
+target_include_directories(test_net PRIVATE "C:\\code\\3rd_lib\\json\\single_include")
+target_include_directories(test_net PRIVATE "C:\\code\\3rd_lib\\ncnn\\out\\install\\x64-Debug\\include")
 
-#target_link_libraries(test_net PRIVATE ${OpenCV_LIBS})
+target_link_libraries(test_net PRIVATE ${OpenCV_LIBS})
 
-#target_link_libraries(test_net PRIVATE "C:\\code\\3rd_lib\\onnxruntime-win-x64-1.15.1\\lib\\onnxruntime.lib"
-#"C:\\code\\3rd_lib\\onnxruntime-win-x64-1.15.1\\lib\\onnxruntime_providers_shared.lib")
+target_link_libraries(test_net PRIVATE "C:\\code\\3rd_lib\\onnxruntime-win-x64-1.15.1\\lib\\onnxruntime.lib"
+"C:\\code\\3rd_lib\\onnxruntime-win-x64-1.15.1\\lib\\onnxruntime_providers_shared.lib")
+target_link_directories(test_net PRIVATE "C:\\code\\3rd_lib\\ncnn\\out\\install\\x64-Debug\\lib")
+target_link_libraries(test_net PRIVATE ncnnd)
 
 #add_executable(test_controller 
 #test_controller.cpp

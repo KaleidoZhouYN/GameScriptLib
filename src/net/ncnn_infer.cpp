@@ -1,35 +1,15 @@
-#ifndef NCNN_INFER_H
-#define NCNN_INFER_H
+#include "ncnn_infer.h"
 
-#include "common.h"
-#include "ncnn/net.h"
-#include "ncnn/layer.h"
-
-#include<string>
-#include<cfloat>
-#include<cstdio>
-#include<filesystem>
-
-class NCNN_INFER
-{
-public:
-	NCNN_INFER() : _net(nullptr) {}
-	virtual ~NCNN_INFER();
-	NCNN_INFER(const NCNN_INFER&) = delete;
-	virtual void infer(const cv::Mat&);
-
-protected:
-	ncnn::Net* _net;  
-};
+#include<iostream>
 
 // load model by config from config file
 void NCNN_INFER::load(const char* config_file)
 {
 	// read config file
-	read_json(config_file, pt);
+	_json.load(config_file); 
 
 	// whether use gpu
-	bool useGPU = pt.get<std::string>("useGPU") > "0";
+	bool useGPU = _json["useGPU"];
 	bool hasGPU; 
 
 #if NCNN_VULKAN
@@ -38,21 +18,21 @@ void NCNN_INFER::load(const char* config_file)
 	hasGPU = 0; 
 #endif
 
-	UseGPU = hasGPU && useGPU; 
+	useGPU = hasGPU && useGPU; 
 
 	// fp16 or int8
-	bool useFp16 = pt.get<std::string>("fp16") > "0";
+	bool useFp16 = _json["fp16"];
 
 	// model
-	std::string param_file = pt.get<std::string>("param_file");
-	std::string bin_file = pt.get<std::string>("bin_file");
+	std::string param_file = _json["param_file"];
+	std::string bin_file = _json["bin_file"];
 	
 	if (_net)
 		delete _net; 
 	_net = new ncnn::Net(); 
 
 	// opt 需要在加载前设置
-	_net->opt.use_vulkan_compute = UseGPU; 
+	_net->opt.use_vulkan_compute = useGPU; 
 	_net->opt.use_fp16_arithmetic = useFp16; 
 	_net->load_param(param_file.c_str());
 	_net->load_model(bin_file.c_str());
@@ -64,18 +44,24 @@ NCNN_INFER::~NCNN_INFER()
 		delete _net; 
 }
 
-void NCNN_INFER::infer()
+void NCNN_INFER::infer(const cv::Mat& bgr)
 {
 	int img_w = bgr.cols; 
 	int img_h = bgr.rows; 
 
 	// input ncnn mat
-	ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, 0, img_w, img_h, input_w, input_h);
+	ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, 0, img_w, img_h, img_w, img_h);
 	const float norm_vals[3] = { 1 / 255.f, 1 / 255.f, 1 / 255.f };
 	in.substract_mean_normalize(0, norm_vals);
 
-	ncnn::Extractor ex = Net->create_extractor(); 
+	ncnn::Extractor ex = _net->create_extractor(); 
 
-	ex.input("images", in_pad);
+	ex.input("images", in);
+	ex.extract(out_layers[0].name.c_str(), _out);
 }
-#endif
+
+void NCNN_INFER::get_result()
+{
+	float* ptr = _out.channel(0);
+	std::cout << ptr[0] << std::endl; 
+}
