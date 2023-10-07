@@ -49,10 +49,10 @@ void test_onnx(cv::Mat& croppedImage)
 
 void test_ncnn(cv::Mat& bgr)
 {
-	NCNN_INFER ncnn_infer;
-	ncnn_infer.load("C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar_feature.json");
-	ncnn_infer.infer(bgr);
-	ncnn_infer.get_result(); 
+	std::shared_ptr<NCNN_INFER> ncnn_infer = std::make_shared<NCNN_INFER>();
+	ncnn_infer->load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar_feature.json)");
+	ncnn_infer->infer(bgr);
+	ncnn_infer->get_result(); 
 }
 
 int main() {
@@ -63,7 +63,7 @@ int main() {
 	cv::resize(image, image, cv::Size(1280, 800));
 
 	cv::Rect rect(1140, 272, 140, 90);
-	cv::Mat croppedImage = image(rect);
+	cv::Mat croppedImage = image(rect).clone();
 
 	test_ncnn(croppedImage); 
 	return 0; 

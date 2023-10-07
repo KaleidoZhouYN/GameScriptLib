@@ -1,7 +1,12 @@
-{"name": "hero_avatar_feature",
-"useGPU": 0,
-"fp16": 0,
-"param_file": "C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar_feature-sim-opt.param",
-"bin_file": "C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar_feature-sim-opt.bin",
-"input": "images"
+{
+    "name": "hero_avatar_feature",
+    "useGPU": false,
+    "fp16": false,
+    "param_file": "C:\\Users\\zhouy\\source\\repos\\GameScriptLib\\src\\app\\epic7\\assert\\hero_avatar_feature-sim-opt.param",
+    "bin_file": "C:\\Users\\zhouy\\source\\repos\\GameScriptLib\\src\\app\\epic7\\assert\\hero_avatar_feature-sim-opt.bin",
+    "input": "input.1",
+    "out_layers":
+    [
+        {"name": "64"}
+    ]
 }

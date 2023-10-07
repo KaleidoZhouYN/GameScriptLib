@@ -12,6 +12,7 @@
 #include "json.h"
 #include "ncnn/net.h"
 #include "ncnn/layer.h"
+#include "process.h"
 
 #include<string>
 #include<cfloat>
@@ -20,13 +21,34 @@
 
 struct Layer_Info
 {
+	Layer_Info(const std::string name_) {
+		name = name_;
+	}
 	std::string name; 
+};
+
+class DefaultPreProcess : public Process {
+	DefaultPreProcess():Process() {}
+	~DefaultPreProcess() {}
+	void LoadConfig() override {};
+	void operator()(LPARAM src, LPARAM dst) override;
+};
+
+class DefaultPostProcess : public Process {
+	DefaultPostProcess() :Process() {}
+	~DefaultPostProcess() {}
+	void LoadConfig() override {};
+	void operator()(LPARAM src, LPARAM dst) override;
 };
 
 class NCNN_INFER
 {
 public:
-	NCNN_INFER() : _net(nullptr) {}
+	static std::unordered_map<std::string, std::shared_ptr<Process>> PreProcess_Register_Map;
+	static std::unordered_map<std::string, std::shared_ptr<Process>> PostProcess_Register_Map;
+public:
+	NCNN_INFER() : _net(nullptr) {
+	}
 	virtual ~NCNN_INFER();
 	NCNN_INFER(const NCNN_INFER&) = delete;
 	virtual void load(const char*);
@@ -36,9 +58,13 @@ public:
 protected:
 	ncnn::Net* _net;
 	JSON _json; 
+	ncnn::Mat _in,_out; 
 
-	ncnn::Mat _out; 
+	std::string _input_name;
 	std::vector<Layer_Info> out_layers;
+	std::shared_ptr<Process> _pre_process;
+	std::shared_ptr<Process> _post_process;
 };
+
 
 #endif
