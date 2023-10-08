@@ -11,6 +11,10 @@ GameScritLib是一个个人使用的游戏脚本库，主要想要实现的功�
 7. ...
 
 # 最新更新
+* 2023/10/08
+
+    [参数化ncnn模型加载](./doc/ncnn/README.md)
+    
 * 2023/09/07
 
     [多进程间读写模型（IPCRW)](./doc/screenshot/README.md)

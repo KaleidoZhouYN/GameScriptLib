@@ -25,6 +25,11 @@ public:
 	{
 		return data.at(key);
 	}
+
+	bool contains(const std::string& key) const
+	{
+		return data.contains(key);
+	}
 private:
 	json data; 
 };

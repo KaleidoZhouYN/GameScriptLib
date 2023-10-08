@@ -8,5 +8,13 @@
     "out_layers":
     [
         {"name": "64"}
-    ]
+    ],
+    "pre_process":
+    {
+        "classname": "default"
+    },
+    "post_process":
+    {
+        "classname": "default"
+    }
 }

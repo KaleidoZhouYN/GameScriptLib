@@ -12,7 +12,7 @@
 #include "json.h"
 #include "ncnn/net.h"
 #include "ncnn/layer.h"
-#include "process.h"
+#include "cus_process.h"
 
 #include<string>
 #include<cfloat>
@@ -27,25 +27,30 @@ struct Layer_Info
 	std::string name; 
 };
 
-class DefaultPreProcess : public Process {
-	DefaultPreProcess():Process() {}
+
+class DefaultPreProcess : public BaseProcess {
+public:
+	DefaultPreProcess() : BaseProcess() {}
 	~DefaultPreProcess() {}
 	void LoadConfig() override {};
-	void operator()(LPARAM src, LPARAM dst) override;
+	void doProcess(LPARAM src, LPARAM dst) override;
 };
 
-class DefaultPostProcess : public Process {
-	DefaultPostProcess() :Process() {}
+class DefaultPostProcess : public BaseProcess {
+public:
+	DefaultPostProcess() : BaseProcess() {}
 	~DefaultPostProcess() {}
 	void LoadConfig() override {};
-	void operator()(LPARAM src, LPARAM dst) override;
+	void doProcess(LPARAM src, LPARAM dst) override;
 };
+
 
 class NCNN_INFER
 {
 public:
-	static std::unordered_map<std::string, std::shared_ptr<Process>> PreProcess_Register_Map;
-	static std::unordered_map<std::string, std::shared_ptr<Process>> PostProcess_Register_Map;
+	typedef std::unordered_map<std::string, BaseProcess* (*)()> map_type;
+	static map_type PreProcess_Register_Map;
+	static map_type PostProcess_Register_Map;
 public:
 	NCNN_INFER() : _net(nullptr) {
 	}
@@ -53,7 +58,7 @@ public:
 	NCNN_INFER(const NCNN_INFER&) = delete;
 	virtual void load(const char*);
 	virtual void infer(const cv::Mat&);
-	virtual void get_result();
+	virtual void get_result(LPARAM dst);
 
 protected:
 	ncnn::Net* _net;
@@ -62,8 +67,8 @@ protected:
 
 	std::string _input_name;
 	std::vector<Layer_Info> out_layers;
-	std::shared_ptr<Process> _pre_process;
-	std::shared_ptr<Process> _post_process;
+	BaseProcess* _pre_process;
+	BaseProcess* _post_process;
 };
 
 
