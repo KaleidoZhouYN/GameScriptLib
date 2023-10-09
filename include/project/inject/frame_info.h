@@ -23,9 +23,6 @@ struct SharedDataHeader {
     int channel;
 };
 
-// 2023/08/25 to do : 增加一个封装类，封装shared memory data
-// done 2023/08/30
-
 // 如果frameinfo内部不提供new buffer,那么也不需要删除
 struct FrameInfo
 {
@@ -63,6 +60,7 @@ public:
         }
     }
 
+    // read head and buffer from address
     void read(BYTE* address)
     {
         memcpy(&header, address, sizeof(header));
@@ -83,12 +81,13 @@ public:
         }
     }
 
+    // write head and buffer into address
     void write(BYTE* address)
     {
-        memcpy(address, &header, sizeof(header));
-        buffer_size = get_buffer_size();
         if (!buffer)
             return;
+        buffer_size = get_buffer_size();
+        memcpy(address, &header, sizeof(header));
         memcpy(address + sizeof(header), buffer, buffer_size);
     }
 };

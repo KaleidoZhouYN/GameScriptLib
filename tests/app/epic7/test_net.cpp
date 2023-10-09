@@ -53,7 +53,7 @@ void test_ncnn(cv::Mat& bgr)
 	ncnn_infer->load(R"(C:\Users\zhouy\source\repos\GameScriptLib\src\app\epic7\assert\hero_avatar_feature.json)");
 	ncnn_infer->infer(bgr);
 	std::vector<std::vector<float>> result;
-	ncnn_infer->get_result(); 
+	ncnn_infer->get_result(reinterpret_cast<LPARAM>(nullptr)); 
 }
 
 int main() {

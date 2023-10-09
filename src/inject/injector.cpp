@@ -57,9 +57,6 @@ void Injector::inject(const std::string& dllpath)
 
 }
 
-// 2023/08/25 to do : 分离inject 和 remotefunctioncall
-// done 2023/08/30
-// to do : 2023/09/01 : 给 set_hook 增加参数, 统一接口
 void Injector::set_hook(const std::string& func_name, LPARAM lParam)
 {
 	if (_injected) {

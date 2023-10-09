@@ -35,21 +35,6 @@ void FmtProcess(FrameInfo* pframe, RENDER_TYPE render_type, IBF fmt)
     if (render_type == RENDER_TYPE::OPENGL)
     {
         // fliplr
-        /*
-        std::allocator<byte> byte_alloc;
-        size_t copy_size = width * channel;
-        byte* tmp = byte_alloc.allocate(copy_size);
-        byte* src_address = nullptr;
-        byte* dst_address = nullptr;
-        for (int i = 0; i < height / 2; i++)
-        {
-            src_address = buffer + i * copy_size; 
-            dst_address = buffer + (height - i -1) * copy_size; 
-            std::memcpy(tmp,src_address, copy_size);
-            std::memcpy(src_address, dst_address, copy_size);
-            std::memcpy(dst_address, tmp, copy_size); 
-        }
-        */
         size_t copy_size = width * channel;
         for (int i = 0; i < height / 2; i++)
         {
@@ -75,25 +60,6 @@ void FmtProcess(FrameInfo* pframe, RENDER_TYPE render_type, IBF fmt)
     return;
 }
 
-// To do : Change width, heigth to RParam
-/*
-BOOL GetWinPixels(HDC hdc, LPARAM lParam, int& width, int& height) {
-    HWND hwnd = WindowFromDC(hdc);
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    width = rect.right - rect.left;
-    height = rect.bottom - rect.top;
-
-    BYTE** pixels = reinterpret_cast<BYTE**>(lParam);
-    *pixels = new BYTE[width * height * 3];
-
-    // 使用glReadPixels获取当前帧的像素数据
-    glReadBuffer(GL_BACK);  // 设置为读取后缓冲区
-    glReadPixels(0, 0, width, height, GL_BGR_EXT, GL_UNSIGNED_BYTE, *pixels);  // 注意: 使用GL_BGR_EXT因为BMP的数据布局,BMP为BGR,openGL标准格式为RGB
-    return TRUE; 
-}
-*/
-
 BOOL GetWinPixels(HDC hdc, LPARAM lParam)
 {
     HWND hwnd = WindowFromDC(hdc);
@@ -110,10 +76,7 @@ BOOL GetWinPixels(HDC hdc, LPARAM lParam)
 }
 
 DLL_API long __stdcall ReleaseHook();
-/*
-@brief: swapbuffer的钩子函数, 将frame binary data 保存进入shared memory
-@param: hdc, 窗口的Device Context Handle
-*/
+
 
 std::mutex mtx; 
 std::condition_variable cv; 
@@ -138,7 +101,10 @@ void WINAPI consumer()
     }
 }
 
-// 发生异常的时候如何安全释放钩子
+/*
+@brief: swapbuffer的钩子函数, 将frame binary data 保存进入shared memory
+@param: hdc, 窗口的Device Context Handle
+*/
 BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
 {
     try {
@@ -148,8 +114,6 @@ BOOL WINAPI hooked_SwapBuffers_SharedMemory(HDC hdc)
             //FrameInfo frame;
             int height = 0, width = 0;
             GetWinPixels(hdc, reinterpret_cast<LPARAM>(&shared_frame));
-            //SharedDataHeader shm_header = { width, height, 3 };
-            //shared_frame.header = shm_header;
             ready = true;
             cv.notify_all();
         }
@@ -183,9 +147,6 @@ void PrintLastError()
     LocalFree(errMsg);
 }
 
-// To do: 2023/08/13
-// 增加一个DLL export 函数，用于接受const char* 参数，参数表明被注入的程序keyword，用于区分对应的shared memory
-// done: 2023/08/23
 DLL_API long __stdcall SetHook(DWORD processId, size_t size)
 {
     LOG(INFO) << "SetHook";

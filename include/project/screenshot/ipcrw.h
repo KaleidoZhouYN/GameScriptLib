@@ -43,6 +43,8 @@ protected:
 	std::shared_ptr<SharedMemory> _shmem;
 };
 
+/* brief: ReadWrite class for One Read && One Write 
+*/
 class OROW : public RWBasic
 {
 public:
@@ -70,6 +72,8 @@ public:
 	}
 };
 
+/* brief: ReadWrite class for Multiple Read && One Write
+*/
 class MROW : public RWBasic
 {
 public:
@@ -130,7 +134,9 @@ private:
 	std::shared_ptr<Semaphore> _semaphore; 
 };
 
-// 异常安全
+/* brief : lock异常安全类, 
+不涉及delete，不需要shared_ptr
+*/
 class LOCKRAII
 {
 public:
@@ -163,6 +169,13 @@ private:
 	bool _bRead;
 };
 
+/* brief: class for inter-process-connect read-write model
+* @param name_ : name identity for named resources
+* @param size_ : size of shared memory
+* @param rw_type : type of RW
+*	0 : OROW
+*   1 : MROW
+*/
 class IPCRW
 {
 public:
@@ -170,16 +183,16 @@ public:
 	{
 		if (rw_type == 0)
 		{
-			_pImpl = new OROW(name_, size_);
+			_pImpl = std::make_shared<OROW>(name_, size_);
 		}
 		if (rw_type == 1)
 		{
-			_pImpl = new MROW(name_, size_);
+			_pImpl = std::make_shared<MROW>(name_, size_);
 		}
 	}
 	~IPCRW()
 	{
-		delete _pImpl; 
+		_pImpl.reset(); 
 	}
 	bool start()
 	{
@@ -187,13 +200,13 @@ public:
 	}
 	void read(BYTE* buffer, size_t size_)
 	{
-		LOCKRAII lock(_pImpl, true);
+		LOCKRAII lock(_pImpl.get(), true);
 		memcpy(buffer, _pImpl->data(), size_);
 		lock.unlock(); 
 	}
 	void write(BYTE* buffer, size_t size_)
 	{
-		LOCKRAII lock(_pImpl, false);
+		LOCKRAII lock(_pImpl.get(), false);
 		memcpy(_pImpl->data(), buffer, size_);
 		lock.unlock(); 
 	}
@@ -201,7 +214,7 @@ public:
 	template<typename Func>
 	void read_from_sm(Func pf)
 	{
-		LOCKRAII lock(_pImpl, true);
+		LOCKRAII lock(_pImpl.get(), true);
 		pf(_pImpl->data());
 		lock.unlock(); 
 	}
@@ -211,12 +224,12 @@ public:
 	template<typename Func>
 	void write_to_sm(Func pf)
 	{
-		LOCKRAII lock(_pImpl, false);
+		LOCKRAII lock(_pImpl.get(), false);
 		pf(_pImpl->data()); 
 		lock.unlock(); 
 	}
 private:
-	RWBasic* _pImpl; 
+	std::shared_ptr<RWBasic> _pImpl; 
 };
 
 #endif

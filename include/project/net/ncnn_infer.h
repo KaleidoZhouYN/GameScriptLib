@@ -61,7 +61,7 @@ public:
 	virtual void get_result(LPARAM dst);
 
 protected:
-	ncnn::Net* _net;
+	std::shared_ptr<ncnn::Net> _net;
 	JSON _json; 
 	ncnn::Mat _in,_out; 
 

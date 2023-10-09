@@ -89,9 +89,8 @@ void NCNN_INFER::load(const char* config_file)
 	}
 	
 
-	if (_net)
-		delete _net; 
-	_net = new ncnn::Net(); 
+	_net.reset();
+	_net = std::make_shared<ncnn::Net>(); 
 
 	// opt 需要在加载前设置
 	_net->opt.use_vulkan_compute = useGPU; 
@@ -102,8 +101,7 @@ void NCNN_INFER::load(const char* config_file)
 
 NCNN_INFER::~NCNN_INFER()
 {
-	if (_net)
-		delete _net; 
+	_net.reset();
 	
 	if (_pre_process)
 		delete _pre_process;

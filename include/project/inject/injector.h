@@ -13,9 +13,6 @@
 #define ELPP_THREAD_SAFE
 
 
-// 2023/08/24
-// to do : decouple interface and implement
-
 class Injector
 {
 private: 

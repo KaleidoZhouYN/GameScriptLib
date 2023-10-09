@@ -12,7 +12,7 @@ public:
 	virtual void doProcess(LPARAM src, LPARAM dst) {};
 };
 
-
 template<typename T> BaseProcess* createProcess() { return new T(); };
+template<typename T> std::shared_ptr<BaseProcess> createSharedPtrProcess() { return std::make_shared<T>(); };
 
 #endif
